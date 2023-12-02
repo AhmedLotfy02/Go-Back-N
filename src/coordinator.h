@@ -26,8 +26,11 @@ using namespace omnetpp;
 class Coordinator : public cSimpleModule
 {
   protected:
+    double startingTime=0.0;
+    int chosenNode;
     virtual void initialize() override;
     virtual void handleMessage(cMessage *msg) override;
+    void readInput( );
 };
 
 #endif

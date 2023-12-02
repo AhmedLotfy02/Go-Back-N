@@ -18,8 +18,8 @@ network Network
             @display("p=567,130");
         }
     connections:
-        coordinator.node0Port <--> sender.coordinatorGate;
-        coordinator.node1Port <--> receiver.coordinatorGate;
+        coordinator.port0 <--> sender.coordinatorGate;
+        coordinator.port1 <--> receiver.coordinatorGate;
         sender.nodeGate <--> receiver.nodeGate;
 }
 

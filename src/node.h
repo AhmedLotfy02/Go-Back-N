@@ -26,6 +26,7 @@ using namespace omnetpp;
 class Node : public cSimpleModule
 {
   protected:
+    bool isSender;
     virtual void initialize() override;
     virtual void handleMessage(cMessage *msg) override;
 };

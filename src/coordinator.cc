@@ -14,13 +14,54 @@
 // 
 
 #include "coordinator.h"
+#include <vector>
+#include <fstream>
+#include "message_m.h"
+using namespace std;
 
 Define_Module(Coordinator);
+
+void Coordinator::readInput(){
+        ifstream filestream;
+        string line;
+       filestream.open("coordinatorfile.txt", ifstream::in);
+
+       if(!filestream.is_open()) {
+           EV<<"error with reading file"<<endl;
+           return ;
+       } else {
+           while ( getline(filestream, line) ) {
+                   EV<<line;
+               if (line.find(',')) {
+                   int beg = line.find(',');
+                   chosenNode = line[beg-1];
+                   startingTime = stod(line.substr(beg+1, line.size()-beg-2));
+                   EV<<chosenNode;
+                   return ;
+
+               }
+           }
+       }
+       return ;
+
+}
 
 void Coordinator::initialize()
 {
     // TODO - Generated method body
+    readInput();
+    Message_Base *senderMsg = new Message_Base(to_string(startingTime).c_str());
+    Message_Base *receiverMsg = new Message_Base("rec");
+    if(chosenNode == 0){
+        send(senderMsg, "port0$o");
+        send(receiverMsg, "port1$o");
+    } else{
+        send(senderMsg, "port1$o");
+        send(receiverMsg, "port0$o");
+    }
 }
+
+
 
 void Coordinator::handleMessage(cMessage *msg)
 {

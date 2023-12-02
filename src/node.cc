@@ -25,4 +25,5 @@ void Node::initialize()
 void Node::handleMessage(cMessage *msg)
 {
     // TODO - Generated method body
+    EV<<"i'm node "<<getName()<<" ,received :"<<msg->getName()<<endl;
 }
