@@ -14,16 +14,40 @@
 // 
 
 #include "node.h"
-
+#include<fstream>
 Define_Module(Node);
 
 void Node::initialize()
 {
     // TODO - Generated method body
 }
+void Node::readInput(char *filename){
 
+        std::ifstream filestream;
+       std::string line;
+
+       filestream.open(filename, std::ifstream::in);
+
+       if(!filestream) {
+           throw cRuntimeError("Error opening file '%s'?", filename);
+       } else {
+           while ( getline(filestream, line) ) {
+               std::string error = line.substr(0,4);
+               errors.push_back(err);
+               std::string message = line.substr(5);
+               messages.push_back(mes);
+           }
+       }
+       filestream.close();
+       return;
+
+}
 void Node::handleMessage(cMessage *msg)
 {
     // TODO - Generated method body
+
+
+
+
     EV<<"i'm node "<<getName()<<" ,received :"<<msg->getName()<<endl;
 }

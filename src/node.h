@@ -17,7 +17,9 @@
 #define __GOBACKN_NODE_H_
 
 #include <omnetpp.h>
-
+#include <vector>
+#include "message_m.h"
+#include <string>
 using namespace omnetpp;
 
 /**
@@ -27,8 +29,16 @@ class Node : public cSimpleModule
 {
   protected:
     bool isSender;
+    //Messages were sent.
+    int seqNum = 0;
+    //The beginning of the window.
+    int windowBeg = 0;
+    //Messages and their corresponding Errors
+    std::vector<std::string>messages,errors;
+
     virtual void initialize() override;
     virtual void handleMessage(cMessage *msg) override;
+    void readInput(char *filename);
 };
 
 #endif
