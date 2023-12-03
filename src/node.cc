@@ -116,6 +116,7 @@ void Node::handleMessage(cMessage *msg)
 
     }
     if(isSender){
+        //Sender Logic
         //send msg if it's starting phase or receiving an ack or timeout
         if(startingPhase|| cmsg->getFrameType()==1 || isTimeout){
 
@@ -137,6 +138,9 @@ void Node::handleMessage(cMessage *msg)
         }
 
 
+    }
+    else{
+        //Receiver Logic
     }
 
 
