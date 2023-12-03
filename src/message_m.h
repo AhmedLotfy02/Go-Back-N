@@ -9,7 +9,7 @@
 #  pragma clang diagnostic ignored "-Wreserved-id-macro"
 #endif
 #include <omnetpp.h>
-
+#include <string>
 // opp_msgtool version check
 #define MSGC_VERSION 0x0600
 #if (MSGC_VERSION!=OMNETPP_VERSION)
@@ -89,8 +89,8 @@ class Message_Base : public ::omnetpp::cPacket
     virtual int getSeqNum() const;
     virtual void setSeqNum(int seqNum);
 
-    virtual const char * getPayload() const;
-    virtual void setPayload(const char * payload);
+    virtual std::string getPayload() const;
+    virtual void setPayload(std::string payload);
 
     virtual char getParity() const;
     virtual void setParity(char parity);

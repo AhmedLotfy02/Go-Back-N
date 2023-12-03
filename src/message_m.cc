@@ -29,7 +29,7 @@
 #include <memory>
 #include <type_traits>
 #include "message_m.h"
-
+#include <string>
 namespace omnetpp {
 
 // Template pack/unpack rules. They are declared *after* a1l type-specific pack functions for multiple reasons.
@@ -152,6 +152,7 @@ void doParsimUnpacking(omnetpp::cCommBuffer *, T& t)
 
 Message_Base::Message_Base(const char *name, short kind) : ::omnetpp::cPacket(name, kind)
 {
+    this->setPayload(name);
 }
 
 Message_Base::Message_Base(const Message_Base& other) : ::omnetpp::cPacket(other)
@@ -210,12 +211,12 @@ void Message_Base::setSeqNum(int seqNum)
     this->seqNum = seqNum;
 }
 
-const char * Message_Base::getPayload() const
+std::string Message_Base::getPayload() const
 {
     return this->payload.c_str();
 }
 
-void Message_Base::setPayload(const char * payload)
+void Message_Base::setPayload(std::string payload)
 {
     this->payload = payload;
 }

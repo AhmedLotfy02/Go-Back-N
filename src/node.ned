@@ -20,6 +20,14 @@ package gobackn;
 //
 simple Node
 {
+    parameters:
+        double PT=0.5;
+        double TD=1.0;
+        double TO=10.0;
+        double ED=4.0;
+        double DD=0.1;
+        int ws=3;
+        
     gates:
         inout coordinatorGate;
         inout nodeGate;

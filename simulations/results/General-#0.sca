@@ -1,0 +1,39 @@
+version 3
+run General-0-20231203-15:08:54-19376
+attr configname General
+attr datetime 20231203-15:08:54
+attr datetimef 20231203-150854
+attr experiment General
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network gobackn.Network
+attr processid 19376
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 522
+config debug-on-errors true
+config network gobackn.Network
+config seed-set 522
+
+par Network.coordinator typename "\"gobackn.Coordinator\""
+par Network.node0 typename "\"gobackn.Node\""
+par Network.node0 PT 0.5
+par Network.node0 TD 1
+par Network.node0 TO 10
+par Network.node0 ED 4
+par Network.node0 DD 0.1
+par Network.node0 ws 3
+par Network.node1 typename "\"gobackn.Node\""
+par Network.node1 PT 0.5
+par Network.node1 TD 1
+par Network.node1 TO 10
+par Network.node1 ED 4
+par Network.node1 DD 0.1
+par Network.node1 ws 3
+par Network typename "\"gobackn.Network\""
+

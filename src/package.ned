@@ -11,15 +11,15 @@ network Network
         coordinator: Coordinator {
             @display("p=335,47");
         }
-        sender: Node {
-            @display("p=94,130");
+        node0: Node {
+            @display("p=119,156");
         }
-        receiver: Node {
-            @display("p=567,130");
+        node1: Node {
+            @display("p=623,151");
         }
     connections:
-        coordinator.port0 <--> sender.coordinatorGate;
-        coordinator.port1 <--> receiver.coordinatorGate;
-        sender.nodeGate <--> receiver.nodeGate;
+        coordinator.port0 <--> node0.coordinatorGate;
+        coordinator.port1 <--> node1.coordinatorGate;
+        node0.nodeGate <--> node1.nodeGate;
 }
 

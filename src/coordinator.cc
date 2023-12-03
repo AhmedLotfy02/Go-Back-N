@@ -24,17 +24,19 @@ Define_Module(Coordinator);
 void Coordinator::readInput(){
         ifstream filestream;
         string line;
-       filestream.open("coordinatorfile.txt", ifstream::in);
+       filestream.open("C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/coordinatorfile.txt", ifstream::in);
 
        if(!filestream.is_open()) {
            EV<<"error with reading file"<<endl;
            return ;
        } else {
            while ( getline(filestream, line) ) {
-                   EV<<line;
+                   EV<<line<<endl;
                if (line.find(',')) {
                    int beg = line.find(',');
-                   chosenNode = line[beg-1];
+                   char s=line[beg-1];
+                   EV<<s<<endl;
+                   chosenNode =  (s=='0')?0:1;
                    startingTime = stod(line.substr(beg+1, line.size()-beg-2));
                    EV<<chosenNode;
                    return ;
