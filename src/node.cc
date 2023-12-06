@@ -127,7 +127,7 @@ void Node::handleMessage(cMessage *msg)
             }
             //for test
             Message_Base *new_msg=new Message_Base(messages[0].c_str());
-            new_msg->setPayload(messages[0]);
+            new_msg->setPayload(messages[0].c_str());
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
             send(new_msg,"nodeGate$o");
