@@ -1,22 +1,8 @@
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Lesser General Public License for more details.
-// 
-// You should have received a copy of the GNU Lesser General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/.
-// 
-
 #include "node.h"
 #include<fstream>
 #include "message_m.h"
 #include <string>
+#include <bitset>
 Define_Module(Node);
 
 void Node::initialize()
@@ -30,8 +16,9 @@ void Node::initialize()
      startingPhase=true;
      index=0;
      finishedFrames=0;
+     expected_seq_num=0;
 }
-
+// Function for framing with byte stuffing
 std::string Node::byteStuffing(std::string f){
     char flag='$';
     char escape='/';
@@ -48,9 +35,20 @@ std::string Node::byteStuffing(std::string f){
 
 }
 
+// Function to calculate the 8-bit checksum
+std::string calculateChecksum(const std::string& str) {
+    unsigned char checksum = 0;
+
+    for (size_t i = 0; i < str.length(); ++i) {
+        checksum += static_cast<unsigned char>(str[i]);
+    }
+
+    // Convert unsigned char to std::bitset
+    std::string bitsetChecksum = std::bitset<8>(checksum).to_string();
+    return bitsetChecksum;
+}
+
 void Node::readInput(const char *filename){
-
-
        std::ifstream filestream;
        std::string line;
 
@@ -78,7 +76,6 @@ void Node::handleMessage(cMessage *msg)
      *
      *
      */
-    // TODO - Generated method body
     Message_Base *cmsg=check_and_cast<Message_Base *> (msg);
     EV<<"i'm node "<<getName()<<" ,received :"<<cmsg->getName()<<endl;
     //Initialization
@@ -87,8 +84,6 @@ void Node::handleMessage(cMessage *msg)
         isSender=false;
         startingPhase=false;
         EV<<"i'm in receiver"<<endl;
-
-
     }
     else if (startingPhase){
         //It's A sender ^^
@@ -101,7 +96,7 @@ void Node::handleMessage(cMessage *msg)
             index=1;
         }
         //read the corresponding file
-        std::string filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        std::string filename="/home/donia/Desktop/college/networks/NW-Project-F23/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
         for(int i=0;i<errors.size();i++){
@@ -109,12 +104,10 @@ void Node::handleMessage(cMessage *msg)
         }
     }
 
-
-
     if(cmsg->isSelfMessage()){
         isTimeout=true;
-
     }
+
     if(isSender){
         //Sender Logic
         //send msg if it's starting phase or receiving an ack or timeout
@@ -128,19 +121,30 @@ void Node::handleMessage(cMessage *msg)
             //for test
             Message_Base *new_msg=new Message_Base(messages[0].c_str());
             new_msg->setPayload(messages[0].c_str());
+            EV << new_msg -> getPayload();
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
             send(new_msg,"nodeGate$o");
-
-
-
-
+            //Byte stuffing then checksum
         }
-
-
     }
     else{
-        //Receiver Logic
+        //Receiver Logic.
+        // Access the loss_probability parameter value
+        double loss_probability = par("LP").doubleValue();
+        // Access the PT parameter value
+        double PT = par("PT").doubleValue();
+        // Access the PT parameter value
+        double TD = par("TD").doubleValue();
+
+        // Get the message data
+        int seqNum = cmsg -> getSeqNum();
+        std::string payload = cmsg -> getPayload();
+        char parity = cmsg -> getParity();
+        // Ack and NACK are sent for in order messages only.
+        if(seqNum == expected_seq_num){
+
+        }
     }
 
 
