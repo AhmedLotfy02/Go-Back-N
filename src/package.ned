@@ -11,7 +11,7 @@ network Network
         double PT = default(0.5);   
         double ED = default(4.0);   
         double DD = default(0.1);   
-        double randomNum = 42; 
+        int randomNum = 42; 
         string nmsg = "example";  
         
                

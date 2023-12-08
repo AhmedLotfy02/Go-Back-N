@@ -124,7 +124,12 @@ void Node::handleMessage(cMessage *msg)
             index=1;
         }
         //read the corresponding file
-        std::string filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        std::string filename="";
+        std::string name="heba";
+        if(name=="heba")
+            filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        else if(name=="shaza")
+            filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
 
         readInput(filename.c_str());
         //test reading
