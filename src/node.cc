@@ -164,58 +164,58 @@ void Node::handleMessage(cMessage *msg)
         //It isn't the message from the coordinator
         if(strcmp(cmsg->getName(),"rec")!=0){
             //Receiver Logic.
-                // Access the loss_probability parameter value
-                double loss_probability = par("LP").doubleValue();
-                // Access the PT parameter value
-                double PT = par("PT").doubleValue();
-                // Access the PT parameter value
-                double TD = par("TD").doubleValue();
-                //default is true ==> if loss ==> upate it to false
-                bool isLoss = true;
-                int frameType;
-                // Get the message data
-                int seqNum = cmsg -> getSeqNum();
-                EV<< "seq_num "<< seqNum <<endl;
-                std::string payload = cmsg -> getPayload();
-                char parity = cmsg -> getParity();
-                // Ack and NACK are sent for in order messages only.
-                if(seqNum == expected_seq_num){
-                    //Calclate the check sum and check it
-                    char checksum = parity;
-                    for (size_t i = 0; i < payload.length(); ++i) {
-                         checksum += static_cast<unsigned char>(payload[i]);
-                     }
-                    //If it is correct
-                     if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
-                         EV <<"correct checksum"<<endl;
-                         expected_seq_num+=1;
-                         //Frame type:ACK=1
-                         int frameType = 1;
-                         //Deframing
-                         std::string destuffedFrame = byteDestuffing(payload);
-                         //Print #5
+            // Access the loss_probability parameter value
+            double loss_probability = par("LP").doubleValue();
+            // Access the PT parameter value
+            double PT = par("PT").doubleValue();
+            // Access the PT parameter value
+            double TD = par("TD").doubleValue();
+            //default is true ==> if loss ==> upate it to false
+            bool isLoss = true;
+            int frameType;
+            // Get the message data
+            int seqNum = cmsg -> getSeqNum();
+            EV<< "seq_num "<< seqNum <<endl;
+            std::string payload = cmsg -> getPayload();
+            char parity = cmsg -> getParity();
+            // Ack and NACK are sent for in order messages only.
+            if(seqNum == expected_seq_num){
+                //Calclate the check sum and check it
+                char checksum = parity;
+                for (size_t i = 0; i < payload.length(); ++i) {
+                     checksum += static_cast<unsigned char>(payload[i]);
+                 }
+                //If it is correct
+                 if(std::bitset<8>(checksum) == std::bitset<8>("11111110")){
+                     EV <<"correct checksum"<<endl;
+                     expected_seq_num+=1;
+                     //Frame type:ACK=1
+                     frameType = 1;
+                     //Deframing
+                     std::string destuffedFrame = byteDestuffing(payload);
+                     //Print #5
+                }
+                //Else
+                else{
+                    //Frame type: NACK=0
+                    frameType = 0;
                     }
-                    //Else
-                    else{
-                        //Frame type: NACK=0
-                        int frameType = 0;
-                        }
-                          //Print #4
-                    }
-                     //The ACK/NACK number is set as the sequence number of the next correct expected frame.
-                     cmsg ->setAckNum(expected_seq_num);
-                     cmsg ->setFrameType(frameType);
-                     //Loss or not
-                     //Loss woth probability = LP
-                     volatile float val = uniform(0, 1);
-                     EV << "Random value: " << val << endl;
-                     if (val >= loss_probability) {
-                         //NO loss
-                         isLoss= false;
-                         //Send Ack.
-                         send(cmsg,"nodeGate$o");
-                     }
-                     //Print #4
+                      //Print #4
+                }
+                 //The ACK/NACK number is set as the sequence number of the next correct expected frame.
+                 cmsg ->setAckNum(expected_seq_num);
+                 cmsg ->setFrameType(frameType);
+                 //Loss or not
+                 //Loss woth probability = LP
+                 volatile float val = uniform(0, 1);
+                 EV << "Random value: " << val << endl;
+                 if (val >= loss_probability) {
+                     //NO loss
+                     isLoss= false;
+                     //Send Ack.
+                     send(cmsg,"nodeGate$o");
+                 }
+                 //Print #4
         }
     }
 }
