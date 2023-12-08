@@ -55,11 +55,11 @@ void Coordinator::initialize()
     Message_Base *senderMsg = new Message_Base(to_string(startingTime).c_str());
     Message_Base *receiverMsg = new Message_Base("rec");
     if(chosenNode == 0){
-        send(senderMsg, "port0$o");
         send(receiverMsg, "port1$o");
+        send(senderMsg, "port0$o");
     } else{
-        send(senderMsg, "port1$o");
         send(receiverMsg, "port0$o");
+        send(senderMsg, "port1$o");
     }
 }
 
