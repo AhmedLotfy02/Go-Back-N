@@ -30,6 +30,7 @@ void Node::initialize()
      startingPhase=true;
      index=0;
      finishedFrames=0;
+     int randomNum = std::rand();
 }
 
 std::string Node::byteStuffing(std::string f){
@@ -101,15 +102,13 @@ void Node::handleMessage(cMessage *msg)
             index=1;
         }
         //read the corresponding file
-        std::string filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        std::string filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
         for(int i=0;i<errors.size();i++){
             EV<<errors[i]<<std::endl;
         }
     }
-
-
 
     if(cmsg->isSelfMessage()){
         isTimeout=true;
@@ -130,13 +129,81 @@ void Node::handleMessage(cMessage *msg)
             new_msg->setPayload(messages[0].c_str());
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
-            send(new_msg,"nodeGate$o");
+            send(new_msg,"nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");
+        }
+        if(errors[0][1] != '1')
+        {
+        switch (errors) {
+        case 0b0000:           //no error
+            Message_Base *new_msg=new Message_Base(messages[0].c_str());
+            new_msg->setPayload(messages[0].c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg, TD+PT, "nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");
+
+        case 0b0001:           //delay
+            Message_Base *new_msg=new Message_Base(messages[0].c_str());
+            new_msg->setPayload(messages[0].c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg,  TD+ED+PT, "nodeGate$o");
+
+        case 0b0010:           //Duplication
+            Message_Base *new_msg=new Message_Base(messages[0].c_str());
+            new_msg->setPayload(messages[0].c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
+            sendDelayed(new_msg, TD+PT+DD , "nodeGate$o");
+
+        case 0b0011:           //Make two versions of the message and add to their sending time the delay error.
+            Message_Base *new_msg=new Message_Base(messages[0].c_str());
+            new_msg->setPayload(messages[0].c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg->dup(), TD+PT +ED, "nodeGate$o");
+            sendDelayed(new_msg, TD+PT+ED+DD , "nodeGate$o");
 
 
+        case 0b1000:                    //Modification
+            int x = randomNum % (8*messages[0].size()); /////////////////////////////
+            nmsg = messages[0][x].flip();                   /////////////////////////////
+            new_msg->setPayload(nmsg.c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg, TD+PT, "nodeGate$o");
 
+        case 0b1001:                    //Modification and delay
+            int x = randomNum % (8*messages[0].size()); /////////////////////////////
+            nmsg = messages[0][x].flip();                   /////////////////////////////
+            new_msg->setPayload(nmsg.c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg, TD+PT+ED, "nodeGate$o");
+
+        case 0b1010:                    //Modification and Duplication
+            int x = randomNum % (8*messages[0].size()); /////////////////////////////
+            nmsg = messages[0][x].flip();                   /////////////////////////////
+            new_msg->setPayload(nmsg.c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
+            sendDelayed(new_msg, TD+PT+DD, "nodeGate$o");
+
+        case 0b1011:                    //Modification and Duplication and DElay
+            int x = randomNum % (8*messages[0].size()); /////////////////////////////
+            nmsg = messages[0][x].flip();                   /////////////////////////////
+            new_msg->setPayload(nmsg.c_str());
+            new_msg->setFrameType(0);
+            new_msg->setSeqNum(windowBeg%3);
+            sendDelayed(new_msg->dup(), ED+TD+PT, "nodeGate$o");
+            sendDelayed(new_msg, TD+PT+DD+ED, "nodeGate$o");
 
         }
-
+    }
+        else{
+           cancelAndDelete (cmsg);
+        }
 
     }
     else{

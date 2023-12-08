@@ -24,7 +24,7 @@ Define_Module(Coordinator);
 void Coordinator::readInput(){
         ifstream filestream;
         string line;
-       filestream.open("C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/coordinatorfile.txt", ifstream::in);
+       filestream.open("D:/Shozy/Networks/project/Go-Back-N/coordinatorfile.txt", ifstream::in);
 
        if(!filestream.is_open()) {
            EV<<"error with reading file"<<endl;
