@@ -17,6 +17,20 @@ void Node::initialize()
      index=0;
      finishedFrames=0;
      expected_seq_num=0;
+     //Check sum test
+     /*std::string payload = "AB";
+     std::bitset<8> parity = calculateChecksum(payload);
+     char checksum = (char) parity.to_ulong();
+     for (size_t i = 0; i < payload.length(); ++i) {
+         checksum += static_cast<unsigned char>(payload[i]);
+     }
+     //If it is correct
+     if(static_cast<unsigned char>(checksum) == 0xFF){
+         EV<<"checkSum is True"<<endl;
+     }
+     else{
+         EV << "new checkSUm: " << std::bitset<8>(checksum)<<endl;
+     }*/
 }
 // Function for framing with byte stuffing
 std::string Node::byteStuffing(std::string f){
@@ -32,21 +46,22 @@ std::string Node::byteStuffing(std::string f){
     }
     final_value+=flag;
     return final_value;
-
 }
 
 // Function to calculate the 8-bit checksum
-std::string calculateChecksum(const std::string& str) {
+std::bitset<8> Node::calculateChecksum(const std::string& str) {
     unsigned char checksum = 0;
 
     for (size_t i = 0; i < str.length(); ++i) {
         checksum += static_cast<unsigned char>(str[i]);
     }
 
-    // Convert unsigned char to std::bitset
-    std::string bitsetChecksum = std::bitset<8>(checksum).to_string();
-    return bitsetChecksum;
-}
+    // Calculate one's complement
+   unsigned char onesComplement = ~checksum;
+
+   // Convert unsigned char to 8-bit bitstream
+   return std::bitset<8>(onesComplement);
+    }
 
 void Node::readInput(const char *filename){
        std::ifstream filestream;
@@ -126,6 +141,9 @@ void Node::handleMessage(cMessage *msg)
             new_msg->setSeqNum(windowBeg%3);
             send(new_msg,"nodeGate$o");
             //Byte stuffing then checksum
+            //To set the checksum as char
+            //std::bitset<8> parityBitStream = calculateChecksum(payload);
+            //char parity = (char) parityBitStream.to_ulong();
         }
     }
     else{
@@ -143,7 +161,27 @@ void Node::handleMessage(cMessage *msg)
         char parity = cmsg -> getParity();
         // Ack and NACK are sent for in order messages only.
         if(seqNum == expected_seq_num){
-
+            //Calclate the check sum and check it
+            char checksum = parity;
+            for (size_t i = 0; i < payload.length(); ++i) {
+                 checksum += static_cast<unsigned char>(payload[i]);
+             }
+            //If it is correct
+             if(static_cast<unsigned char>(checksum) == 0xFF){
+                 EV <<"True checksum"<<endl;
+                //Increment expected_seq_num
+                //Deframing
+                //Print #5
+                //Loss or not
+                //Send Ack ACK=1.
+                //Print #4
+            }
+            //Else
+            else{
+                //Loss or not
+                //Send NAck  NACK=0
+                //Print #4
+            }
         }
     }
 

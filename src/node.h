@@ -5,6 +5,7 @@
 #include <vector>
 #include "message_m.h"
 #include <string>
+#include <bitset>
 using namespace omnetpp;
 
 class Node : public cSimpleModule
@@ -37,7 +38,7 @@ class Node : public cSimpleModule
     virtual void handleMessage(cMessage *msg) override;
     void readInput(const char *filename);
     std::string byteStuffing(std::string f);
-    std::string calculateChecksum(std::string& str);
+    std::bitset<8> calculateChecksum(const std::string& str);
 };
 
 #endif
