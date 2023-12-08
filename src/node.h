@@ -32,6 +32,7 @@ class Node : public cSimpleModule
     //to indicate the number of frames send and acknowledged to compare it with the number of messagse
     int finishedFrames;
 
+
     //Reciever data
     int expected_seq_num;
     virtual void initialize() override;
