@@ -24,7 +24,7 @@ Define_Module(Coordinator);
 void Coordinator::readInput(){
         ifstream filestream;
         string line;
-       filestream.open("/home/donia/Desktop/college/networks/NW-Project-F23/Go-Back-N/src/coordinatorfile.txt", ifstream::in);
+       filestream.open("/home/donia/Desktop/college/networks/Go-Back-N/src/coordinatorfile.txt", ifstream::in);
 
        if(!filestream.is_open()) {
            EV<<"error with reading file"<<endl;

@@ -78,7 +78,6 @@ void Node::readInput(const char *filename){
        }
        filestream.close();
        return;
-
 }
 
 void Node::initialize()
@@ -93,25 +92,6 @@ void Node::initialize()
      index=0;
      finishedFrames=0;
      expected_seq_num=0;
-     //Test byte stuffing
-     /*std::string frame = "AB$$A/$";
-     EV<< "Before stuffing " <<frame<<endl;
-     EV<< "After stuffing " <<byteStuffing(frame)<<endl;
-     EV<< "After deStuffing " <<byteDestuffing(byteStuffing(frame))<<endl;*/
-     //Check sum test
-     /*std::string payload = "AB";
-     std::bitset<8> parity = calculateChecksum(payload);
-     char checksum = (char) parity.to_ulong();
-     for (size_t i = 0; i < payload.length(); ++i) {
-         checksum += static_cast<unsigned char>(payload[i]);
-     }
-     //If it is correct
-     if(static_cast<unsigned char>(checksum) == 0xFF){
-         EV<<"checkSum is True"<<endl;
-     }
-     else{
-         EV << "new checkSUm: " << std::bitset<8>(checksum)<<endl;
-     }*/
 }
 
 void Node::handleMessage(cMessage *msg)
@@ -142,7 +122,7 @@ void Node::handleMessage(cMessage *msg)
             index=1;
         }
         //read the corresponding file
-        std::string filename="/home/donia/Desktop/college/networks/NW-Project-F23/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        std::string filename="/home/donia/Desktop/college/networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
         for(int i=0;i<errors.size();i++){
@@ -166,56 +146,76 @@ void Node::handleMessage(cMessage *msg)
             }
             //for test
             Message_Base *new_msg=new Message_Base(messages[0].c_str());
-            new_msg->setPayload(messages[0].c_str());
-            EV << new_msg -> getPayload();
+            std::string stuffedFrame = byteStuffing(messages[0].c_str());
+            new_msg->setPayload(stuffedFrame.c_str());
+            EV << new_msg -> getPayload() <<endl;
+            //To set the checksum as char
+            std::bitset<8> parityBitStream = calculateChecksum(stuffedFrame);
+            char parity = (char) parityBitStream.to_ulong();
+            new_msg->setParity(parity);
+            EV << "Parity: " <<new_msg->getParity()<<endl;
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
+            EV<< "seq_num "<< new_msg -> getSeqNum() <<endl;
             send(new_msg,"nodeGate$o");
-            //Byte stuffing then checksum
-            //To set the checksum as char
-            //std::bitset<8> parityBitStream = calculateChecksum(payload);
-            //char parity = (char) parityBitStream.to_ulong();
         }
     }
     else{
-        //Receiver Logic.
-        // Access the loss_probability parameter value
-        double loss_probability = par("LP").doubleValue();
-        // Access the PT parameter value
-        double PT = par("PT").doubleValue();
-        // Access the PT parameter value
-        double TD = par("TD").doubleValue();
-
-        // Get the message data
-        int seqNum = cmsg -> getSeqNum();
-        std::string payload = cmsg -> getPayload();
-        char parity = cmsg -> getParity();
-        // Ack and NACK are sent for in order messages only.
-        if(seqNum == expected_seq_num){
-            //Calclate the check sum and check it
-            char checksum = parity;
-            for (size_t i = 0; i < payload.length(); ++i) {
-                 checksum += static_cast<unsigned char>(payload[i]);
-             }
-            //If it is correct
-             if(static_cast<unsigned char>(checksum) == 0xFF){
-                 expected_seq_num+=1;
-                //Deframing
-                //Print #5
-                //Loss or not
-                //Send Ack ACK=1.
-                //Print #4
-            }
-            //Else
-            else{
-                //Loss or not
-                //Send NAck  NACK=0
-                //Print #4
-            }
+        //It isn't the message from the coordinator
+        if(strcmp(cmsg->getName(),"rec")!=0){
+            //Receiver Logic.
+                // Access the loss_probability parameter value
+                double loss_probability = par("LP").doubleValue();
+                // Access the PT parameter value
+                double PT = par("PT").doubleValue();
+                // Access the PT parameter value
+                double TD = par("TD").doubleValue();
+                //default is true ==> if loss ==> upate it to false
+                bool isLoss = true;
+                int frameType;
+                // Get the message data
+                int seqNum = cmsg -> getSeqNum();
+                EV<< "seq_num "<< seqNum <<endl;
+                std::string payload = cmsg -> getPayload();
+                char parity = cmsg -> getParity();
+                // Ack and NACK are sent for in order messages only.
+                if(seqNum == expected_seq_num){
+                    //Calclate the check sum and check it
+                    char checksum = parity;
+                    for (size_t i = 0; i < payload.length(); ++i) {
+                         checksum += static_cast<unsigned char>(payload[i]);
+                     }
+                    //If it is correct
+                     if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
+                         EV <<"correct checksum"<<endl;
+                         expected_seq_num+=1;
+                         //Frame type:ACK=1
+                         int frameType = 1;
+                         //Deframing
+                         std::string destuffedFrame = byteDestuffing(payload);
+                         //Print #5
+                    }
+                    //Else
+                    else{
+                        //Frame type: NACK=0
+                        int frameType = 0;
+                        }
+                          //Print #4
+                    }
+                     //The ACK/NACK number is set as the sequence number of the next correct expected frame.
+                     cmsg ->setAckNum(expected_seq_num);
+                     cmsg ->setFrameType(frameType);
+                     //Loss or not
+                     //Loss woth probability = LP
+                     volatile float val = uniform(0, 1);
+                     EV << "Random value: " << val << endl;
+                     if (val >= loss_probability) {
+                         //NO loss
+                         isLoss= false;
+                         //Send Ack.
+                         send(cmsg,"nodeGate$o");
+                     }
+                     //Print #4
         }
     }
-
-
-
-
 }
