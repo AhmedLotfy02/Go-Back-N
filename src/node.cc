@@ -82,6 +82,46 @@ void Node::readInput(const char *filename){
        return;
 }
 
+void Node::outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error,int modifiedBitNumber, int duplicateNumber, )
+{
+    output_file.open("output.txt");
+    if(printCase==0)
+    {
+        std:: string dummy="At time ["+ eventTime+"], Node["+NodeId+"] , Introducing channel error with code =["+error +"]."
+
+
+
+
+    }
+    else if(printCase==1)
+    {
+        std::string dupMsg="";
+        if(error[3])
+        {
+            if(duplicateNumber==1)
+            {
+                dupMsg="1";
+            }
+            else
+            {
+                dupMsg="2";
+            }
+        }
+        else
+        {
+            dupMsg="0";
+        }
+        std:: string dummy="At time ["+ eventTime+"], Node["+NodeId+"]  [sent] frame with seq_num=["+std::to_string(msg->getSeqNum()) +"] and payload=["+msg->getPayload()+" ] and trailer=["+msg->getTrailer()+"] , Modified [ "+ (error[0])?modifiedBitNumber:'-1' +" ] , Lost ["+ (error[1])?"Yes":"No" +"], Duplicate ["+dupMsg+"], Delay ["+(!error[2])?"0":getParentModule()->par("DD").doubleValue()+"]."
+    }
+    else if(printCase==2)
+    {
+        std:: string dummy="Time out event at time  ["+ eventTime+"], at Node["+NodeId+"] for frame with seq_num=["+std::to_string(msg->getSeqNum()) +"] ";
+
+
+    }
+
+}
+
 void Node::initialize()
 {
      //delays= double(getParentModule()->par("PT"))+double(getParentModule()->par("TD"));
@@ -94,6 +134,8 @@ void Node::initialize()
      index=0;
      finishedFrames=0;
      expected_seq_num=0;
+     currentTime = simTime().dbl();
+
 
 }
 
@@ -117,6 +159,9 @@ void Node::handleMessage(cMessage *msg)
     else if (startingPhase){
         //It's A sender ^^
         EV<<"i'm in sender"<<endl;
+
+        //currentTime+=cmsg->getName();
+
         isSender=true;
         if(strcmp( getName(),"node0")==0){
             index=0;
@@ -187,7 +232,8 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(messages[0].c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg, TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT, "nodeGate$o");
+                        currentTime=simTime().dbl()+TD+PT;
                 }////sendDelayed(new_msg, TD+PT, "nodeGate$o");}
 
                 else if(std::strcmp(errors[0].c_str(), "0001")==0)
@@ -196,7 +242,7 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(messages[0].c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg,  TD+ED+PT, "nodeGate$o");
+                        sendDelayed(new_msg,  simTime().dbl()+TD+ED+PT, "nodeGate$o");
                 }
 
                 else if(std::strcmp(errors[0].c_str(), "0010")==0)
@@ -205,8 +251,8 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(messages[0].c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
-                        sendDelayed(new_msg, TD+PT+DD , "nodeGate$o");
+                        sendDelayed(new_msg->dup(), simTime().dbl()+TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT+DD , "nodeGate$o");
                 }
 
                 else if(std::strcmp(errors[0].c_str(), "0011")==0)
@@ -215,8 +261,8 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(messages[0].c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg->dup(), TD+PT +ED, "nodeGate$o");
-                        sendDelayed(new_msg, TD+PT+ED+DD , "nodeGate$o");
+                        sendDelayed(new_msg->dup(), simTime().dbl()+TD+PT +ED, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT+ED+DD , "nodeGate$o");
                 }
 
 
@@ -229,7 +275,7 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(nmsg.c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg, TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT, "nodeGate$o");
                 }
 
                 else if(std::strcmp(errors[0].c_str(), "1001")==0)
@@ -241,7 +287,7 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(nmsg.c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg, TD+PT+ED, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT+ED, "nodeGate$o");
                 }
 
                 else if(std::strcmp(errors[0].c_str(), "1010")==0)
@@ -253,8 +299,8 @@ void Node::handleMessage(cMessage *msg)
                         new_msg->setPayload(nmsg.c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
-                         sendDelayed(new_msg, TD+PT+DD, "nodeGate$o");
+                        sendDelayed(new_msg->dup(),simTime().dbl()+ TD+PT, "nodeGate$o");
+                         sendDelayed(new_msg, simTime().dbl()+TD+PT+DD, "nodeGate$o");
                 }
 
                 else if(std::strcmp(errors[0].c_str(), "1011")==0)
@@ -265,8 +311,8 @@ void Node::handleMessage(cMessage *msg)
                         nmsg = static_cast<char>(bitsetNmsg.to_ulong());                    new_msg->setPayload(nmsg.c_str());
                         new_msg->setFrameType(0);
                         new_msg->setSeqNum(windowBeg%3);
-                        sendDelayed(new_msg->dup(), ED+TD+PT, "nodeGate$o");
-                        sendDelayed(new_msg, TD+PT+DD+ED, "nodeGate$o");
+                        sendDelayed(new_msg->dup(), simTime().dbl()+ED+TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, simTime().dbl()+TD+PT+DD+ED, "nodeGate$o");
                 }
 
 

@@ -40,6 +40,7 @@ void Coordinator::readInput(){
                    chosenNode =  (s=='0')?0:1;
                    startingTime = stod(line.substr(beg+1, line.size()-beg-2));
                    EV<<chosenNode;
+                   output_file.open("output.txt");
                    return ;
 
                }

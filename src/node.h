@@ -6,10 +6,13 @@
 #include "message_m.h"
 #include <string>
 #include <bitset>
+#include <fstream>
 using namespace omnetpp;
 
 class Node : public cSimpleModule
 {
+
+
   protected:
     //to check if the node is sender or not
     bool isSender;
@@ -32,6 +35,10 @@ class Node : public cSimpleModule
     //to indicate the number of frames send and acknowledged to compare it with the number of messagse
     int finishedFrames;
 
+    double currentTime;
+
+    std::ofstream output_file;
+
 
     //Reciever data
     int expected_seq_num;
@@ -41,6 +48,7 @@ class Node : public cSimpleModule
     std::string byteStuffing(std::string frame);
     std::string byteDestuffing(const std::string& stuffedFrame);
     std::bitset<8> calculateChecksum(const std::string& str);
+    void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
 };
 
 #endif
