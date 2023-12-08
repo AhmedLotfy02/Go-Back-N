@@ -26,7 +26,8 @@ simple Node
         double TO=10.0;
         double ED=4.0;
         double DD=0.1;
-        int ws=3;
+        double LP = 0;
+        int WS=3;
         
     gates:
         inout coordinatorGate;

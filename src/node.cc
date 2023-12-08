@@ -1,57 +1,67 @@
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Lesser General Public License for more details.
-// 
-// You should have received a copy of the GNU Lesser General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/.
-// 
-
 #include "node.h"
 #include<fstream>
 #include "message_m.h"
 #include <string>
+#include <bitset>
 Define_Module(Node);
 
-void Node::initialize()
-{
-     //delays= double(getParentModule()->par("PT"))+double(getParentModule()->par("TD"));
-     delays=0.1+10.0;
-     //ws=int(getParentModule()->par("ws"));
-     ws=3;
-     isTimeout=false;
-     noErrors=false;
-     startingPhase=true;
-     index=0;
-     finishedFrames=0;
-     int randomNum = std::rand();
-}
 
-std::string Node::byteStuffing(std::string f){
+// Function for framing with byte stuffing
+std::string Node::byteStuffing(std::string frame){
     char flag='$';
     char escape='/';
-    std::string final_value=std::to_string(flag);
-    for(int i=0;i<f.size();i++){
-        if(f[i]==flag||f[i]==escape){
+    std::string final_value="";
+    final_value+=flag;
+    for(int i=0;i<frame.size();i++){
+        if(frame[i]==flag||frame[i]==escape){
             final_value+=escape;
         }
-        final_value+=f[i];
+        final_value+=frame[i];
 
     }
     final_value+=flag;
     return final_value;
-
 }
+// Function for destuffing
+std::string Node::byteDestuffing(const std::string& stuffedFrame) {
+    char flag = '$';
+    char escape = '/';
+    std::string destuffedFrame;
 
+    // Skip the initial flag
+    size_t i = 1;
+
+    while (i < stuffedFrame.size() - 1) { // Skip the final flag
+        if (stuffedFrame[i] == escape) {
+            // If the current character is an escape character,
+            // the next character is the actual data, including flag or escape
+            destuffedFrame += stuffedFrame[i + 1];
+            i += 2; // Skip the escape character and the next character
+        } else {
+            destuffedFrame += stuffedFrame[i];
+            i++;
+        }
+    }
+
+    return destuffedFrame;
+}
+// Function to calculate the 8-bit checksum
+std::bitset<8> Node::calculateChecksum(const std::string& str) {
+    //1 Byte checksum
+    unsigned char checksum = 0;
+    //Add all chracters
+    for (size_t i = 0; i < str.length(); ++i) {
+        checksum += static_cast<unsigned char>(str[i]);
+    }
+
+    // Calculate one's complement
+   unsigned char onesComplement = ~checksum;
+
+   // Convert unsigned char to 8-bit bitstream
+   return std::bitset<8>(onesComplement);
+}
+//Function to read input file
 void Node::readInput(const char *filename){
-
-
        std::ifstream filestream;
        std::string line;
 
@@ -69,8 +79,22 @@ void Node::readInput(const char *filename){
        }
        filestream.close();
        return;
-
 }
+
+void Node::initialize()
+{
+     //delays= double(getParentModule()->par("PT"))+double(getParentModule()->par("TD"));
+     delays=0.1+10.0;
+     //ws=int(getParentModule()->par("ws"));
+     ws=3;
+     isTimeout=false;
+     noErrors=false;
+     startingPhase=true;
+     index=0;
+     finishedFrames=0;
+     expected_seq_num=0;
+}
+
 void Node::handleMessage(cMessage *msg)
 {
     /*
@@ -79,7 +103,6 @@ void Node::handleMessage(cMessage *msg)
      *
      *
      */
-    // TODO - Generated method body
     Message_Base *cmsg=check_and_cast<Message_Base *> (msg);
     EV<<"i'm node "<<getName()<<" ,received :"<<cmsg->getName()<<endl;
     //Initialization
@@ -88,8 +111,6 @@ void Node::handleMessage(cMessage *msg)
         isSender=false;
         startingPhase=false;
         EV<<"i'm in receiver"<<endl;
-
-
     }
     else if (startingPhase){
         //It's A sender ^^
@@ -103,6 +124,7 @@ void Node::handleMessage(cMessage *msg)
         }
         //read the corresponding file
         std::string filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
+
         readInput(filename.c_str());
         //test reading
         for(int i=0;i<errors.size();i++){
@@ -112,8 +134,8 @@ void Node::handleMessage(cMessage *msg)
 
     if(cmsg->isSelfMessage()){
         isTimeout=true;
-
     }
+
     if(isSender){
         //Sender Logic
         //send msg if it's starting phase or receiving an ack or timeout
@@ -126,9 +148,17 @@ void Node::handleMessage(cMessage *msg)
             }
             //for test
             Message_Base *new_msg=new Message_Base(messages[0].c_str());
-            new_msg->setPayload(messages[0].c_str());
+            std::string stuffedFrame = byteStuffing(messages[0].c_str());
+            new_msg->setPayload(stuffedFrame.c_str());
+            EV << new_msg -> getPayload() <<endl;
+            //To set the checksum as char
+            std::bitset<8> parityBitStream = calculateChecksum(stuffedFrame);
+            char parity = (char) parityBitStream.to_ulong();
+            new_msg->setParity(parity);
+            EV << "Parity: " <<new_msg->getParity()<<endl;
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
+
             send(new_msg,"nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");
         }
         if(errors[0][1] != '1')
@@ -205,12 +235,64 @@ void Node::handleMessage(cMessage *msg)
            cancelAndDelete (cmsg);
         }
 
+        
     }
     else{
-        //Receiver Logic
+        //It isn't the message from the coordinator
+        if(strcmp(cmsg->getName(),"rec")!=0){
+            //Receiver Logic.
+            // Access the loss_probability parameter value
+            double loss_probability = par("LP").doubleValue();
+            // Access the PT parameter value
+            double PT = par("PT").doubleValue();
+            // Access the PT parameter value
+            double TD = par("TD").doubleValue();
+            //default is true ==> if loss ==> upate it to false
+            bool isLoss = true;
+            int frameType;
+            // Get the message data
+            int seqNum = cmsg -> getSeqNum();
+            EV<< "seq_num "<< seqNum <<endl;
+            std::string payload = cmsg -> getPayload();
+            char parity = cmsg -> getParity();
+            // Ack and NACK are sent for in order messages only.
+            if(seqNum == expected_seq_num){
+                //Calclate the check sum and check it
+                char checksum = parity;
+                for (size_t i = 0; i < payload.length(); ++i) {
+                     checksum += static_cast<unsigned char>(payload[i]);
+                 }
+                //If it is correct
+                 if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
+                     EV <<"correct checksum"<<endl;
+                     expected_seq_num+=1;
+                     //Frame type:ACK=1
+                     frameType = 1;
+                     //Deframing
+                     std::string destuffedFrame = byteDestuffing(payload);
+                     //Print #5
+                }
+                //Else
+                else{
+                    //Frame type: NACK=0
+                    frameType = 0;
+                    }
+                      //Print #4
+                }
+                 //The ACK/NACK number is set as the sequence number of the next correct expected frame.
+                 cmsg ->setAckNum(expected_seq_num);
+                 cmsg ->setFrameType(frameType);
+                 //Loss or not
+                 //Loss woth probability = LP
+                 volatile float val = uniform(0, 1);
+                 EV << "Random value: " << val << endl;
+                 if (val >= loss_probability) {
+                     //NO loss
+                     isLoss= false;
+                     //Send Ack.
+                     send(cmsg,"nodeGate$o");
+                 }
+                 //Print #4
+        }
     }
-
-
-
-
 }

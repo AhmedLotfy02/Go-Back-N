@@ -5,8 +5,7 @@ package gobackn;
 // TODO documentation
 //
 network Network
-{
-    @display("bgb=744,327");
+{       
     submodules:
         coordinator: Coordinator {
             @display("p=335,47");
