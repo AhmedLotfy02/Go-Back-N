@@ -73,6 +73,7 @@ void Node::readInput(const char *filename){
            while ( getline(filestream, line) ) {
                std::string error = line.substr(0,4);
                errors.push_back(error);
+
                std::string message = line.substr(5);
                messages.push_back(message);
            }
@@ -152,10 +153,12 @@ void Node::handleMessage(cMessage *msg)
     if(isSender){
         //Sender Logic
         //send msg if it's starting phase or receiving an ack or timeout
-        if(startingPhase|| cmsg->getFrameType()==1 || isTimeout){
+        if(startingPhase|| cmsg->getFrameType()==1 || isTimeout)
+        {
 
             //if it's an ack and not a timeout (assume ws=3 until reading it from .ini)
-            if(!isTimeout&&cmsg->getAckNum()==(windowBeg+1)%3){
+            if(!isTimeout&&cmsg->getAckNum()==(windowBeg+1)%3)
+            {
                   windowBeg=(windowBeg+1)%3; // increase the begining of window
                   finishedFrames++;
             }
@@ -172,88 +175,112 @@ void Node::handleMessage(cMessage *msg)
             new_msg->setFrameType(0);
             new_msg->setSeqNum(windowBeg%3);
 
-            send(new_msg,"nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");
-        }
-        if(errors[0][1] != '1')
-                {
-                    if(errors[0]== "0000"){           //no error
-                    Message_Base *new_msg=new Message_Base(messages[0].c_str());
-                    new_msg->setPayload(messages[0].c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg, TD+PT, "nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");}
+            //send(new_msg,"nodeGate$o");           ////sendDelayed(new_msg, TD+PT, "nodeGate$o");
 
-                    if(errors[0]== "0001"){           //delay
-                    Message_Base *new_msg=new Message_Base(messages[0].c_str());
-                    new_msg->setPayload(messages[0].c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg,  TD+ED+PT, "nodeGate$o");}
+            if(errors[0][1] != '1')
 
-                    if(errors[0]== "0010"){           //Duplication
-                    Message_Base *new_msg=new Message_Base(messages[0].c_str());
-                    new_msg->setPayload(messages[0].c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
-                    sendDelayed(new_msg, TD+PT+DD , "nodeGate$o");}
-
-                    if(errors[0]== "0011"){          //Make two versions of the message and add to their sending time the delay error.
-                    Message_Base *new_msg=new Message_Base(messages[0].c_str());
-                    new_msg->setPayload(messages[0].c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg->dup(), TD+PT +ED, "nodeGate$o");
-                    sendDelayed(new_msg, TD+PT+ED+DD , "nodeGate$o");}
-
-
-                    if(errors[0]== "1000"){                  //Modification
-                    int x = randomNum % (8*messages[0].size()); /////////////////////////////
-                    std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
-                    bitsetNmsg.flip();
-                    nmsg = static_cast<char>(bitsetNmsg.to_ulong());
-                    new_msg->setPayload(nmsg.c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg, TD+PT, "nodeGate$o");}
-
-                    if(errors[0]== "1001"){                    //Modification and delay
-                    int x = randomNum % (8*messages[0].size()); /////////////////////////////
-                    std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
-                    bitsetNmsg.flip();
-                    nmsg = static_cast<char>(bitsetNmsg.to_ulong());
-                    new_msg->setPayload(nmsg.c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg, TD+PT+ED, "nodeGate$o");}
-
-                    if(errors[0]== "1010"){                    //Modification and Duplication
-                    int x = randomNum % (8*messages[0].size()); /////////////////////////////
-                    std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
-                    bitsetNmsg.flip();
-                    nmsg = static_cast<char>(bitsetNmsg.to_ulong());
-                    new_msg->setPayload(nmsg.c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
-                    sendDelayed(new_msg, TD+PT+DD, "nodeGate$o");}
-
-                    if(errors[0]== "1011"){                    //Modification and Duplication and DElay
-                    int x = randomNum % (8*messages[0].size()); /////////////////////////////
-                    std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
-                    bitsetNmsg.flip();
-                    nmsg = static_cast<char>(bitsetNmsg.to_ulong());                    new_msg->setPayload(nmsg.c_str());
-                    new_msg->setFrameType(0);
-                    new_msg->setSeqNum(windowBeg%3);
-                    sendDelayed(new_msg->dup(), ED+TD+PT, "nodeGate$o");
-                    sendDelayed(new_msg, TD+PT+DD+ED, "nodeGate$o");}
-
-               }
-             }
-            else
             {
-               cancelAndDelete (cmsg);
-            }
+                std::cout<<errors[0]<<endl;
+                if(std::strcmp(errors[0].c_str(), "0000")==0)
+                {           //no error
+                        Message_Base *new_msg=new Message_Base(messages[0].c_str());
+                        new_msg->setPayload(messages[0].c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg, TD+PT, "nodeGate$o");
+                }////sendDelayed(new_msg, TD+PT, "nodeGate$o");}
+
+                else if(std::strcmp(errors[0].c_str(), "0001")==0)
+                {           //delay
+                        Message_Base *new_msg=new Message_Base(messages[0].c_str());
+                        new_msg->setPayload(messages[0].c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg,  TD+ED+PT, "nodeGate$o");
+                }
+
+                else if(std::strcmp(errors[0].c_str(), "0010")==0)
+                {           //Duplication
+                        Message_Base *new_msg=new Message_Base(messages[0].c_str());
+                        new_msg->setPayload(messages[0].c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, TD+PT+DD , "nodeGate$o");
+                }
+
+                else if(std::strcmp(errors[0].c_str(), "0011")==0)
+                {          //Make two versions of the message and add to their sending time the delay error.
+                        Message_Base *new_msg=new Message_Base(messages[0].c_str());
+                        new_msg->setPayload(messages[0].c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg->dup(), TD+PT +ED, "nodeGate$o");
+                        sendDelayed(new_msg, TD+PT+ED+DD , "nodeGate$o");
+                }
+
+
+                else if(std::strcmp(errors[0].c_str(), "1000")==0)
+                {                  //Modification
+                        int x = randomNum % (8*messages[0].size()); /////////////////////////////
+                        std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
+                        bitsetNmsg.flip();
+                        nmsg = static_cast<char>(bitsetNmsg.to_ulong());
+                        new_msg->setPayload(nmsg.c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg, TD+PT, "nodeGate$o");
+                }
+
+                else if(std::strcmp(errors[0].c_str(), "1001")==0)
+                {                    //Modification and delay
+                        int x = randomNum % (8*messages[0].size()); /////////////////////////////
+                        std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
+                        bitsetNmsg.flip();
+                        nmsg = static_cast<char>(bitsetNmsg.to_ulong());
+                        new_msg->setPayload(nmsg.c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg, TD+PT+ED, "nodeGate$o");
+                }
+
+                else if(std::strcmp(errors[0].c_str(), "1010")==0)
+                {                    //Modification and Duplication
+                        int x = randomNum % (8*messages[0].size()); /////////////////////////////
+                        std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
+                        bitsetNmsg.flip();
+                        nmsg = static_cast<char>(bitsetNmsg.to_ulong());
+                        new_msg->setPayload(nmsg.c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg->dup(), TD+PT, "nodeGate$o");
+                         sendDelayed(new_msg, TD+PT+DD, "nodeGate$o");
+                }
+
+                else if(std::strcmp(errors[0].c_str(), "1011")==0)
+                {                    //Modification and Duplication and DElay
+                        int x = randomNum % (8*messages[0].size()); /////////////////////////////
+                        std::bitset<8> bitsetNmsg = messages[0][x]; /////////////////////////////
+                        bitsetNmsg.flip();
+                        nmsg = static_cast<char>(bitsetNmsg.to_ulong());                    new_msg->setPayload(nmsg.c_str());
+                        new_msg->setFrameType(0);
+                        new_msg->setSeqNum(windowBeg%3);
+                        sendDelayed(new_msg->dup(), ED+TD+PT, "nodeGate$o");
+                        sendDelayed(new_msg, TD+PT+DD+ED, "nodeGate$o");
+                }
+
+
+                 }
+                else
+                {
+                   cancelAndDelete (cmsg);
+                }
+
+        }
+
+
+
+
 
         
     }

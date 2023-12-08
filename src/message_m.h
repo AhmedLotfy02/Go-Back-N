@@ -103,4 +103,3 @@ class Message_Base : public ::omnetpp::cPacket
 
 
 #endif // ifndef __MESSAGE_M_H
-
