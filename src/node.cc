@@ -186,7 +186,7 @@ void Node::handleMessage(cMessage *msg)
                      checksum += static_cast<unsigned char>(payload[i]);
                  }
                 //If it is correct
-                 if(std::bitset<8>(checksum) == std::bitset<8>("11111110")){
+                 if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
                      EV <<"correct checksum"<<endl;
                      expected_seq_num+=1;
                      //Frame type:ACK=1
