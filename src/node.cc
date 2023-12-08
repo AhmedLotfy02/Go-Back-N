@@ -5,53 +5,50 @@
 #include <bitset>
 Define_Module(Node);
 
-void Node::initialize()
-{
-     //delays= double(getParentModule()->par("PT"))+double(getParentModule()->par("TD"));
-     delays=0.1+10.0;
-     //ws=int(getParentModule()->par("ws"));
-     ws=3;
-     isTimeout=false;
-     noErrors=false;
-     startingPhase=true;
-     index=0;
-     finishedFrames=0;
-     expected_seq_num=0;
-     //Check sum test
-     /*std::string payload = "AB";
-     std::bitset<8> parity = calculateChecksum(payload);
-     char checksum = (char) parity.to_ulong();
-     for (size_t i = 0; i < payload.length(); ++i) {
-         checksum += static_cast<unsigned char>(payload[i]);
-     }
-     //If it is correct
-     if(static_cast<unsigned char>(checksum) == 0xFF){
-         EV<<"checkSum is True"<<endl;
-     }
-     else{
-         EV << "new checkSUm: " << std::bitset<8>(checksum)<<endl;
-     }*/
-}
 // Function for framing with byte stuffing
-std::string Node::byteStuffing(std::string f){
+std::string Node::byteStuffing(std::string frame){
     char flag='$';
     char escape='/';
-    std::string final_value=std::to_string(flag);
-    for(int i=0;i<f.size();i++){
-        if(f[i]==flag||f[i]==escape){
+    std::string final_value="";
+    final_value+=flag;
+    for(int i=0;i<frame.size();i++){
+        if(frame[i]==flag||frame[i]==escape){
             final_value+=escape;
         }
-        final_value+=f[i];
+        final_value+=frame[i];
 
     }
     final_value+=flag;
     return final_value;
 }
+// Function for destuffing
+std::string Node::byteDestuffing(const std::string& stuffedFrame) {
+    char flag = '$';
+    char escape = '/';
+    std::string destuffedFrame;
 
+    // Skip the initial flag
+    size_t i = 1;
+
+    while (i < stuffedFrame.size() - 1) { // Skip the final flag
+        if (stuffedFrame[i] == escape) {
+            // If the current character is an escape character,
+            // the next character is the actual data, including flag or escape
+            destuffedFrame += stuffedFrame[i + 1];
+            i += 2; // Skip the escape character and the next character
+        } else {
+            destuffedFrame += stuffedFrame[i];
+            i++;
+        }
+    }
+
+    return destuffedFrame;
+}
 // Function to calculate the 8-bit checksum
 std::bitset<8> Node::calculateChecksum(const std::string& str) {
+    //1 Byte checksum
     unsigned char checksum = 0;
-
+    //Add all chracters
     for (size_t i = 0; i < str.length(); ++i) {
         checksum += static_cast<unsigned char>(str[i]);
     }
@@ -61,8 +58,8 @@ std::bitset<8> Node::calculateChecksum(const std::string& str) {
 
    // Convert unsigned char to 8-bit bitstream
    return std::bitset<8>(onesComplement);
-    }
-
+}
+//Function to read input file
 void Node::readInput(const char *filename){
        std::ifstream filestream;
        std::string line;
@@ -83,6 +80,40 @@ void Node::readInput(const char *filename){
        return;
 
 }
+
+void Node::initialize()
+{
+     //delays= double(getParentModule()->par("PT"))+double(getParentModule()->par("TD"));
+     delays=0.1+10.0;
+     //ws=int(getParentModule()->par("ws"));
+     ws=3;
+     isTimeout=false;
+     noErrors=false;
+     startingPhase=true;
+     index=0;
+     finishedFrames=0;
+     expected_seq_num=0;
+     //Test byte stuffing
+     /*std::string frame = "AB$$A/$";
+     EV<< "Before stuffing " <<frame<<endl;
+     EV<< "After stuffing " <<byteStuffing(frame)<<endl;
+     EV<< "After deStuffing " <<byteDestuffing(byteStuffing(frame))<<endl;*/
+     //Check sum test
+     /*std::string payload = "AB";
+     std::bitset<8> parity = calculateChecksum(payload);
+     char checksum = (char) parity.to_ulong();
+     for (size_t i = 0; i < payload.length(); ++i) {
+         checksum += static_cast<unsigned char>(payload[i]);
+     }
+     //If it is correct
+     if(static_cast<unsigned char>(checksum) == 0xFF){
+         EV<<"checkSum is True"<<endl;
+     }
+     else{
+         EV << "new checkSUm: " << std::bitset<8>(checksum)<<endl;
+     }*/
+}
+
 void Node::handleMessage(cMessage *msg)
 {
     /*
@@ -168,8 +199,7 @@ void Node::handleMessage(cMessage *msg)
              }
             //If it is correct
              if(static_cast<unsigned char>(checksum) == 0xFF){
-                 EV <<"True checksum"<<endl;
-                //Increment expected_seq_num
+                 expected_seq_num+=1;
                 //Deframing
                 //Print #5
                 //Loss or not

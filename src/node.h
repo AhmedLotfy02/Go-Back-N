@@ -37,7 +37,8 @@ class Node : public cSimpleModule
     virtual void initialize() override;
     virtual void handleMessage(cMessage *msg) override;
     void readInput(const char *filename);
-    std::string byteStuffing(std::string f);
+    std::string byteStuffing(std::string frame);
+    std::string byteDestuffing(const std::string& stuffedFrame);
     std::bitset<8> calculateChecksum(const std::string& str);
 };
 
