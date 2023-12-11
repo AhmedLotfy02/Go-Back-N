@@ -37,6 +37,11 @@ class Node : public cSimpleModule
 
     double currentTime;
 
+    //Sent messages but not received anything from receiver yet (for looping)
+        int sentCounter=0;
+        //keep track of sent messages
+        int nextSentIndex=0;
+
     std::ofstream output_file;
 
 
