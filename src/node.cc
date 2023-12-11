@@ -171,7 +171,7 @@ void Node::handleMessage(cMessage *msg)
         }
         //read the corresponding file
         std::string filename="";
-        std::string name="ahmed";
+        std::string name="shaza";
         if(name=="heba")
             filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         else if(name=="shaza")
@@ -180,9 +180,9 @@ void Node::handleMessage(cMessage *msg)
             filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
-        for(int i=0;i<errors.size();i++){
-            EV<<errors[i]<<std::endl;
-        }
+//        for(int i=0;i<errors.size();i++){
+//            EV<<errors[i]<<std::endl;
+//        }
     }
 
     if(cmsg->isSelfMessage()){
@@ -212,6 +212,7 @@ void Node::handleMessage(cMessage *msg)
             {
                   windowBeg=(windowBeg+1)%3; // increase the begining of window
                   finishedFrames++;
+                  sentCounter--;
             }
             //for test
             for(int i=sentCounter;i<3;i++){
@@ -232,32 +233,37 @@ void Node::handleMessage(cMessage *msg)
                          new_msg->setSeqNum(windowBeg%3);
 
 
-
+                         double delay_time = PT+TD;
                          if(errors[nextSentIndex][1] != '1')
 
                          {
+
                              std::cout<<errors[nextSentIndex]<<endl;
                              if(std::strcmp(errors[nextSentIndex].c_str(), "0000")==0)
                              {           //no error
-                                     sendDelayed(new_msg, simTime().dbl()+TD+PT, "nodeGate$o");
-                                     currentTime=simTime().dbl()+TD+PT;
+
+                                     sendDelayed(new_msg, simTime().dbl()+ delay_time, "nodeGate$o");
+                                     currentTime=simTime().dbl()+delay_time;
                              }////sendDelayed(new_msg, TD+PT, "nodeGate$o");}
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "0001")==0)
                              {           //delay
-                                     sendDelayed(new_msg,  simTime().dbl()+TD+ED+PT, "nodeGate$o");
+                                     delay_time+=delay_time+ED;
+                                     sendDelayed(new_msg,  simTime().dbl()+delay_time, "nodeGate$o");
                              }
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "0010")==0)
                              {           //Duplication
-                                     sendDelayed(new_msg->dup(), simTime().dbl()+TD+PT, "nodeGate$o");
-                                     sendDelayed(new_msg, simTime().dbl()+TD+PT+DD , "nodeGate$o");
+
+                                     sendDelayed(new_msg->dup(), simTime().dbl()+delay_time, "nodeGate$o");
+                                     sendDelayed(new_msg, simTime().dbl()+delay_time+DD , "nodeGate$o");
                              }
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "0011")==0)
                              {          //Make two versions of the message and add to their sending time the delay error.
-                                     sendDelayed(new_msg->dup(), simTime().dbl()+TD+PT +ED, "nodeGate$o");
-                                     sendDelayed(new_msg, simTime().dbl()+TD+PT+ED+DD , "nodeGate$o");
+                                 delay_time+=ED;
+                                     sendDelayed(new_msg->dup(), simTime().dbl()+delay_time , "nodeGate$o");
+                                     sendDelayed(new_msg, simTime().dbl()+delay_time+DD , "nodeGate$o");
                              }
 
 
@@ -275,6 +281,7 @@ void Node::handleMessage(cMessage *msg)
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "1001")==0)
                              {                    //Modification and delay
+                                 delay_time+=ED;
                                      int x = randomNum % (8*messages[nextSentIndex].size()); /////////////////////////////
                                      std::bitset<8> bitsetNmsg = messages[nextSentIndex][x]; /////////////////////////////
                                      bitsetNmsg.flip();
@@ -282,7 +289,7 @@ void Node::handleMessage(cMessage *msg)
                                      new_msg->setPayload(nmsg.c_str());
                                      new_msg->setFrameType(0);
                                      new_msg->setSeqNum(windowBeg%3);
-                                     sendDelayed(new_msg, simTime().dbl()+TD+PT+ED, "nodeGate$o");
+                                     sendDelayed(new_msg, simTime().dbl()+delay_time, "nodeGate$o");
                              }
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "1010")==0)
@@ -294,20 +301,21 @@ void Node::handleMessage(cMessage *msg)
                                      new_msg->setPayload(nmsg.c_str());
                                      new_msg->setFrameType(0);
                                      new_msg->setSeqNum(windowBeg%3);
-                                     sendDelayed(new_msg->dup(),simTime().dbl()+ TD+PT, "nodeGate$o");
-                                      sendDelayed(new_msg, simTime().dbl()+TD+PT+DD, "nodeGate$o");
+                                     sendDelayed(new_msg->dup(),simTime().dbl()+ delay_time, "nodeGate$o");
+                                      sendDelayed(new_msg, simTime().dbl()+delay_time+DD, "nodeGate$o");
                              }
 
                              else if(std::strcmp(errors[nextSentIndex].c_str(), "1011")==0)
                              {                    //Modification and Duplication and DElay
+                                     delay_time+=ED;
                                      int x = randomNum % (8*messages[nextSentIndex].size()); /////////////////////////////
                                      std::bitset<8> bitsetNmsg = messages[nextSentIndex][x]; /////////////////////////////
                                      bitsetNmsg.flip();
                                      nmsg = static_cast<char>(bitsetNmsg.to_ulong());                    new_msg->setPayload(nmsg.c_str());
                                      new_msg->setFrameType(0);
                                      new_msg->setSeqNum(windowBeg%3);
-                                     sendDelayed(new_msg->dup(), simTime().dbl()+ED+TD+PT, "nodeGate$o");
-                                     sendDelayed(new_msg, simTime().dbl()+TD+PT+DD+ED, "nodeGate$o");
+                                     sendDelayed(new_msg->dup(), simTime().dbl()+delay_time, "nodeGate$o");
+                                     sendDelayed(new_msg, simTime().dbl()+delay_time+DD, "nodeGate$o");
                              }
 
 
@@ -318,14 +326,18 @@ void Node::handleMessage(cMessage *msg)
                              }
                              //send timer self message of this msg
                               Message_Base *timerMsg=new Message_Base("Timeout Msg");
+                              if(errors[nextSentIndex][3] == '1')
+                              {
+                                timerMsg->setSeqNum((windowBeg+i)%3);
+                                scheduleAt(simTime().dbl()+delay_time+DD+10, timerMsg);
+                              }
+                              else{
                               timerMsg->setSeqNum((windowBeg+i)%3);
-                              scheduleAt(10, timerMsg);
+                              scheduleAt(simTime().dbl()+delay_time+10, timerMsg);
+                              }
                               sentCounter++;
                               nextSentIndex++;
-
-
                      }
-
 
         }
 

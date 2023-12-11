@@ -8,14 +8,14 @@
 #  pragma warning(disable:4065)
 #endif
 
-#if defined(__clang__)
+#if defined(_clang_)
 #  pragma clang diagnostic ignored "-Wshadow"
 #  pragma clang diagnostic ignored "-Wconversion"
 #  pragma clang diagnostic ignored "-Wunused-parameter"
 #  pragma clang diagnostic ignored "-Wc++98-compat"
 #  pragma clang diagnostic ignored "-Wunreachable-code-break"
 #  pragma clang diagnostic ignored "-Wold-style-cast"
-#elif defined(__GNUC__)
+#elif defined(_GNUC_)
 #  pragma GCC diagnostic ignored "-Wshadow"
 #  pragma GCC diagnostic ignored "-Wconversion"
 #  pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -30,7 +30,7 @@
 
 namespace omnetpp {
 
-// Template pack/unpack rules. They are declared *after* a1l type-specific pack functions for multiple reasons.
+// Template pack/unpack rules. They are declared after a1l type-specific pack functions for multiple reasons.
 // They are in the omnetpp namespace, to allow them to be found by argument-dependent lookup via the cCommBuffer argument
 
 // Packing/unpacking an std::vector
@@ -534,4 +534,3 @@ void *MessageDescriptor::getFieldStructValuePointer(void *object, int field, int
         default: return nullptr;
     }
 }
-

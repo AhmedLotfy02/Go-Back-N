@@ -5,7 +5,7 @@
 #ifndef __MESSAGE_M_H
 #define __MESSAGE_M_H
 
-#if defined(__clang__)
+#if defined(_clang_)
 #  pragma clang diagnostic ignored "-Wreserved-id-macro"
 #endif
 #include <omnetpp.h>
