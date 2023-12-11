@@ -171,7 +171,7 @@ void Node::handleMessage(cMessage *msg)
         }
         //read the corresponding file
         std::string filename="";
-        std::string name="shaza";
+        std::string name="ahmed";
         if(name=="heba")
             filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         else if(name=="shaza")
@@ -185,9 +185,7 @@ void Node::handleMessage(cMessage *msg)
 //        }
     }
 
-    if(cmsg->isSelfMessage()){
-        isTimeout=true;
-    }
+
     double TD = getParentModule()->par("TD").doubleValue();
     double PT = getParentModule()->par("PT").doubleValue();
     double ED = getParentModule()->par("ED").doubleValue();
@@ -195,10 +193,11 @@ void Node::handleMessage(cMessage *msg)
     int randomNum = getParentModule()->par("randomNum").intValue();
     std::string nmsg = getParentModule()->par("nmsg").stringValue();
     //timeout condition
-     if(cmsg->isSelfMessage()&&finishedFrames<messages.size()){
+     if(cmsg->isSelfMessage()&&finishedFrames<messages.size()&&cmsg->getSeqNum()>finishedFrames){
          isTimeout=true;
          nextSentIndex=finishedFrames;
          sentCounter=0;
+         EV<<"Timeout at: "<<cmsg->getSeqNum();
      }
 
     if(isSender){
@@ -328,12 +327,12 @@ void Node::handleMessage(cMessage *msg)
                               Message_Base *timerMsg=new Message_Base("Timeout Msg");
                               if(errors[nextSentIndex][3] == '1')
                               {
-                                timerMsg->setSeqNum((windowBeg+i)%3);
+                                timerMsg->setSeqNum((nextSentIndex)%3);
                                 scheduleAt(simTime().dbl()+delay_time+DD+10, timerMsg);
                               }
                               else{
-                              timerMsg->setSeqNum((windowBeg+i)%3);
-                              scheduleAt(simTime().dbl()+delay_time+10, timerMsg);
+                                  timerMsg->setSeqNum((nextSentIndex)%3);
+                                  scheduleAt(simTime().dbl()+delay_time+10, timerMsg);
                               }
                               sentCounter++;
                               nextSentIndex++;

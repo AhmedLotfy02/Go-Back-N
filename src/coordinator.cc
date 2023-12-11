@@ -26,7 +26,7 @@ void Coordinator::readInput(){
         string line;
         //read the corresponding file
        std::string filename="";
-       std::string name="shaza";
+       std::string name="ahmed";
        if(name=="heba")
            filename="E:/CMP4/Networks/Go-Back-N/";
        else if(name=="shaza")
