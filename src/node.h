@@ -53,7 +53,7 @@ class Node : public cSimpleModule
     std::string byteStuffing(std::string frame);
     std::string byteDestuffing(const std::string& stuffedFrame);
     std::bitset<8> calculateChecksum(const std::string& str);
-    void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
+  //  void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
 };
 
 #endif
