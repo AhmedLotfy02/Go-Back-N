@@ -24,7 +24,17 @@ Define_Module(Coordinator);
 void Coordinator::readInput(){
         ifstream filestream;
         string line;
-       filestream.open("E:/CMP4/Networks/Go-Back-N/coordinatorfile.txt", ifstream::in);
+        //read the corresponding file
+       std::string filename="";
+       std::string name="heba";
+       if(name=="heba")
+           filename="E:/CMP4/Networks/Go-Back-N/";
+       else if(name=="shaza")
+           filename="D:/Shozy/Networks/project/Go-Back-N/";
+       else if(name=="ahmed")
+           filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/";
+
+       filestream.open(filename+"coordinatorfile.txt", ifstream::in);
 
 
        if(!filestream.is_open()) {

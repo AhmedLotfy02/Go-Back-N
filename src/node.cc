@@ -176,7 +176,8 @@ void Node::handleMessage(cMessage *msg)
             filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         else if(name=="shaza")
             filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
-
+        else if(name=="ahmed")
+            filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
         for(int i=0;i<errors.size();i++){
