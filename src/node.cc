@@ -171,13 +171,15 @@ void Node::handleMessage(cMessage *msg)
         }
         //read the corresponding file
         std::string filename="";
-        std::string name="ahmed";
+        std::string name="Donia";
         if(name=="heba")
             filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         else if(name=="shaza")
             filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(index)+".txt";
         else if(name=="ahmed")
             filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(index)+".txt";
+        else if(name=="Donia")
+            filename="/home/donia/Desktop/college/networks/Go-Back-N/src/input"+std::to_string(index)+".txt";
         readInput(filename.c_str());
         //test reading
 //        for(int i=0;i<errors.size();i++){
@@ -316,9 +318,7 @@ void Node::handleMessage(cMessage *msg)
                                      sendDelayed(new_msg->dup(), simTime().dbl()+delay_time, "nodeGate$o");
                                      sendDelayed(new_msg, simTime().dbl()+delay_time+DD, "nodeGate$o");
                              }
-
-
-                              }
+                          }
                              else
                              {
                                 cancelAndDelete (cmsg);
@@ -337,16 +337,11 @@ void Node::handleMessage(cMessage *msg)
                               sentCounter++;
                               nextSentIndex++;
                      }
-
         }
-
-
-
-
-
-        
     }
     else{
+        //Reciever
+
         //It isn't the message from the coordinator
         if(strcmp(cmsg->getName(),"rec")!=0){
             //Receiver Logic.
@@ -359,8 +354,6 @@ void Node::handleMessage(cMessage *msg)
             //default is true ==> if loss ==> upate it to false
             bool isLoss = true;
             int frameType;
-            // Get the message data
-            int seqNum = cmsg -> getSeqNum();
             EV<< "seq_num "<< seqNum <<endl;
             std::string payload = cmsg -> getPayload();
             char parity = cmsg -> getParity();
@@ -386,22 +379,22 @@ void Node::handleMessage(cMessage *msg)
                     //Frame type: NACK=0
                     frameType = 0;
                     }
+                 //The ACK/NACK number is set as the sequence number of the next correct expected frame.
+                  cmsg ->setAckNum(expected_seq_num);
+                  cmsg ->setFrameType(frameType);
+                  //Loss or not
+                  //Loss woth probability = LP
+                  volatile float val = uniform(0, 1);
+                  EV << "Random value: " << val << endl;
+                  if (val >= loss_probability) {
+                      //NO loss
+                      isLoss= false;
+                      //Send Ack.
+                      send(cmsg,"nodeGate$o");
+                  }
                       //Print #4
                 }
-                 //The ACK/NACK number is set as the sequence number of the next correct expected frame.
-                 cmsg ->setAckNum(expected_seq_num);
-                 cmsg ->setFrameType(frameType);
-                 //Loss or not
-                 //Loss woth probability = LP
-                 volatile float val = uniform(0, 1);
-                 EV << "Random value: " << val << endl;
-                 if (val >= loss_probability) {
-                     //NO loss
-                     isLoss= false;
-                     //Send Ack.
-                     send(cmsg,"nodeGate$o");
-                 }
-                 //Print #4
+
         }
     }
 }

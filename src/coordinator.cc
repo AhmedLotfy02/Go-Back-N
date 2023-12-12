@@ -26,13 +26,15 @@ void Coordinator::readInput(){
         string line;
         //read the corresponding file
        std::string filename="";
-       std::string name="ahmed";
+       std::string name="Donia";
        if(name=="heba")
            filename="E:/CMP4/Networks/Go-Back-N/";
        else if(name=="shaza")
            filename="D:/Shozy/Networks/project/Go-Back-N/";
        else if(name=="ahmed")
            filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/";
+       else if(name == "Donia")
+           filename = "/home/donia/Desktop/college/networks/Go-Back-N/";
 
        filestream.open(filename+"coordinatorfile.txt", ifstream::in);
 
