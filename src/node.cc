@@ -354,6 +354,8 @@ void Node::handleMessage(cMessage *msg)
             //default is true ==> if loss ==> upate it to false
             bool isLoss = true;
             int frameType;
+            // Get the message data
+            int seqNum = cmsg -> getSeqNum();
             EV<< "seq_num "<< seqNum <<endl;
             std::string payload = cmsg -> getPayload();
             char parity = cmsg -> getParity();
