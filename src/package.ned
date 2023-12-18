@@ -7,12 +7,14 @@ package gobackn;
 network Network
 {
     parameters:
-        double TD = default(0.0);   
-        double PT = default(0.5);   
-        double ED = default(4.0);   
-        double DD = default(0.1);   
-        int randomNum = 42; 
-        string nmsg = "example";  
+        double TD = 0.5;   
+        double PT = 0.5;   
+        double ED = 4.0;   
+        double DD = 0.1; 
+        double TO = 10.0;
+        int WS=5;  
+        int modification_random_number = 42;
+        double LP = default(0.0);
         
                
     submodules:

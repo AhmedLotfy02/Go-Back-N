@@ -19,16 +19,7 @@ package gobackn;
 // TODO auto-generated module
 //
 simple Node
-{
-    parameters:
-        double PT=0.5;
-        double TD=0.0;
-        double TO=10.0;
-        double ED=4.0;
-        double DD=0.1;
-        double LP = 0;
-        int WS=3;
-        
+{       
     gates:
         inout coordinatorGate;
         inout nodeGate;
