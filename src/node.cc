@@ -124,26 +124,36 @@ void Node::readInput(const char *filename){
 //    }
 //
 //}
-
-// Start the timeout
-void Node::scheduleTimeout(double timeout) {
-    // Cancel the existing timeout, if any
-    cancelTimeout();
-    // Start new timeout
-    scheduleAt(simTime() + timeout, timeoutEvent);
-}
 // Start the PT
 void Node::scheduleProcessingTime(double PT) {
     // Start new timeout
     scheduleAt( simTime() + PT, ProcessingTimeEvent);
 }
-// Cancel the timeout
-void Node::cancelTimeout() {
-    cancelEvent(timeoutEvent);
-}
 // Cancel the processing time when receiving non ack
 void Node::cancelProcessingTime() {
     cancelEvent(ProcessingTimeEvent);
+}
+
+void Node::scheduleTimeout(int sequenceNumber) {
+    // Schedule a new timeout event for the given sequence number
+    cMessage *timeoutEvent = new cMessage("Timeout");
+    timeoutEvent->setKind(sequenceNumber);
+    scheduleAt(simTime() + 10.0, timeoutEvent);  // Set timeout duration (adjust as needed)
+    // Store the timeout event in the map
+    timeoutEvents[sequenceNumber] = timeoutEvent;
+}
+
+void Node::cancelTimeout(int sequenceNumber) {
+    // Iterate over the timeouts and cancel those less than or equal to the given sequenceNumber
+        for (auto it = timeoutEvents.begin(); it != timeoutEvents.end(); ) {
+            if (it->first <= sequenceNumber) {
+                // Cancel and delete the timeout event
+                cancelAndDelete(it->second);
+                it = timeoutEvents.erase(it);
+            } else {
+                ++it;
+            }
+        }
 }
 
 void Node::send_new_line(Message_Base *new_msg, bool is_modification = false) {
@@ -271,13 +281,15 @@ void Node::handleMessage(cMessage *msg)
                 else{
                     scheduleProcessingTime(time_first_message);
                 }
-
             }
             // sender logic
             if(isSender){
                 // if ack/not ack is received
                 if(cmsg->getFrameType()==1 || cmsg->getFrameType()==0){
                     last_acked_frame = cmsg->getAckNum();
+                    // Cancel the timeout of the last messag before the ack number
+                    //accumulative cancel
+                    cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
                     windowBeg = (windowBeg + last_acked_frame) % WS;
                     // set the first index to send according to the new window
@@ -286,6 +298,9 @@ void Node::handleMessage(cMessage *msg)
                 // if non ack ==> resend the frame with non ack
                 else if (cmsg->getFrameType()==0){
                     last_acked_frame = cmsg->getAckNum();
+                    // Cancel the timeout of the last messag before the ack number
+                    //accumulative cancel
+                    cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
                     windowBeg = (windowBeg + last_acked_frame) % WS;
                     //the first message in the new window
@@ -360,19 +375,41 @@ void Node::handleMessage(cMessage *msg)
     // generic message (a message from the same node)
     else{
         // Check if the message is a timeout alarm
-        if (msg == timeoutEvent) {
+        if (std::strcmp(msg->getName(),"Timeout")==0) {
             // time out handling
-            //read again the first message in the window but error free this time
-            //prepare the message
+            // Handle timeout event
+            int expiredSequenceNumber = msg->getKind();
+            EV << "Timeout occurred for message with sequence number " << expiredSequenceNumber << "\n";
+            //read again the first message time out but error free this time
+            //index of the first message of the window to be sent
+            next_message_index = 0;
             //send the message
+            //error free
+            Message_Base *new_msg = new Message_Base();
+            //no modification error
+            send_new_line(new_msg,false);
+            // No delay, No loss, No duplication
+            sendDelayed(new_msg, TD, "nodeGate$o");
             //update variables
+            //finished frames
+            sent_frames = expiredSequenceNumber;
+            //increment the next_message_index after sending
+            next_message_index = (next_message_index + 1) % WS;
             //set processing time delay
+            scheduleProcessingTime(PT);
+            // Schedule the timeout event for the newly sent message
+            scheduleTimeout(expiredSequenceNumber);
+            // Delete any remaining timeout events
+            for (auto &entry : timeoutEvents) {
+                cancelAndDelete(entry.second);
+            }
         }
         else if (msg == ProcessingTimeEvent){
             EV <<"ProcessingTimeEvent" <<endl;
             //check don't exceed window size
             //check messages doesn't end
             if(next_message_index <= WS && sent_frames < messages.size()){
+                EV<<"windowBeg "<<windowBeg<<endl;
                 // if the sender received non ack ==> resend the last message
                 //error free
                 if(is_non_ack){
@@ -416,6 +453,8 @@ void Node::handleMessage(cMessage *msg)
                 sent_frames+=1;
                 //set processing time delay
                 scheduleProcessingTime(PT);
+                // Schedule the timeout event for the sent message
+                scheduleTimeout(sent_frames);
             }
             //terminate condition
             //all message are sent ==> terminate

@@ -40,7 +40,8 @@ class Node : public cSimpleModule
     int expected_seq_num;
     //number of frames already sent
     int sent_frames = 0;
-
+    // Map to store timeout events for each message
+    std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
     double TD;
     double PT;
@@ -64,16 +65,15 @@ class Node : public cSimpleModule
     // function to apply check sum in sender side
     std::bitset<8> calculateChecksum(const std::string& str);
 
-    // functions to deal with time out event
-    void scheduleTimeout(double timeout);
-    void cancelTimeout();
-
     // functions to deal with PT wait
     void scheduleProcessingTime(double PT);
     void cancelProcessingTime();
     // Fumction to send new message from the sender
     void send_new_line(Message_Base *new_msg, bool is_modification);
   //  void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
+
+    virtual void scheduleTimeout(int sequenceNumber);
+    virtual void cancelTimeout(int sequenceNumber);
 };
 
 #endif
