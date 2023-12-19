@@ -230,7 +230,7 @@ void Node::initialize()
 
 void Node::handleMessage(cMessage *msg)
 {
-    EV<<"simTime().dbl(): "<<simTime().dbl()<<endl;
+    EV<<"simTime() : "<<simTime().dbl()<<endl;
     // Check if the received message is of type cMessage (message from another nodes)
     if (dynamic_cast<Message_Base*>(msg) != nullptr) {
         // Received a Message_Base message
@@ -358,17 +358,15 @@ void Node::handleMessage(cMessage *msg)
                           //Loss with probability = LP
                           volatile float val = uniform(0, 1);
                           EV << "Random value: " << val << endl;
-                          double delay_time = PT+TD;
                           if (val >= loss_probability) {
                               //NO loss
                               isLoss= false;
                               //Send Ack.
-                              sendDelayed(cmsg, delay_time, "nodeGate$o");
+                              sendDelayed(cmsg, TD + PT, "nodeGate$o");
                               EV<< "Ack sent " << cmsg ->getAckNum()<< endl;
                           }
                               //Print #4
                         }
-
                 }
             }
     }
@@ -388,6 +386,8 @@ void Node::handleMessage(cMessage *msg)
             Message_Base *new_msg = new Message_Base();
             //no modification error
             send_new_line(new_msg,false);
+            // send after 0.001 (to break any possible ties).
+            scheduleAt( simTime() + 0.001, ProcessingTimeEvent);
             // No delay, No loss, No duplication
             sendDelayed(new_msg, TD, "nodeGate$o");
             //update variables

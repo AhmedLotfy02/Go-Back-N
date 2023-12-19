@@ -35,10 +35,9 @@ void Coordinator::readInput(){
                    int beg = line.find(',');
                    // The sender node inde (0 o)
                    char sender_idx = line[beg-1];
-                   EV<<"sender_idx"<<sender_idx<<endl;
+                   EV<<"sender_idx "<<sender_idx<<endl;
                    sender_node =  (sender_idx=='0')?0:1;
                    startingTime = stod(line.substr(beg+1, line.size()-beg-2));
-                   EV<<sender_node;
                    output_file.open("output.txt");
                    return ;
 
