@@ -138,7 +138,7 @@ void Node::scheduleTimeout(int sequenceNumber) {
     // Schedule a new timeout event for the given sequence number
     cMessage *timeoutEvent = new cMessage("Timeout");
     timeoutEvent->setKind(sequenceNumber);
-    scheduleAt(simTime() + 10.0, timeoutEvent);  // Set timeout duration (adjust as needed)
+    scheduleAt(simTime() + TO, timeoutEvent);  // Set timeout duration (adjust as needed)
     // Store the timeout event in the map
     timeoutEvents[sequenceNumber] = timeoutEvent;
 }
@@ -285,9 +285,9 @@ void Node::handleMessage(cMessage *msg)
             // sender logic
             if(isSender){
                 // if ack/not ack is received
-                if(cmsg->getFrameType()==1 || cmsg->getFrameType()==0){
+                if(cmsg->getFrameType()==1){
                     last_acked_frame = cmsg->getAckNum();
-                    // Cancel the timeout of the last messag before the ack number
+                    // Cancel the timeout of the last message before the ack number
                     //accumulative cancel
                     cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
@@ -298,7 +298,7 @@ void Node::handleMessage(cMessage *msg)
                 // if non ack ==> resend the frame with non ack
                 else if (cmsg->getFrameType()==0){
                     last_acked_frame = cmsg->getAckNum();
-                    // Cancel the timeout of the last messag before the ack number
+                    // Cancel the timeout of the last message before the ack number
                     //accumulative cancel
                     cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
@@ -408,6 +408,8 @@ void Node::handleMessage(cMessage *msg)
                 if(is_non_ack){
                     //error free
                     error_bits = "0000";
+                    //finished frames
+                    sent_frames = last_acked_frame;
                 }
                 else if(is_time_out){
                     //error free
@@ -442,6 +444,9 @@ void Node::handleMessage(cMessage *msg)
                     //no loss
                     sendDelayed(new_msg, delay, "nodeGate$o");
                     }
+                else{
+                    cancelAndDelete(new_msg);
+                }
                 //check duplicate error bit
                 if(error_bits[2]== '1'){
                     //duplicate printing
@@ -458,7 +463,6 @@ void Node::handleMessage(cMessage *msg)
                     }
                 }
                 //else ==> loss
-                }
                 //increment the next_message_index after sending
                 next_message_index = (next_message_index + 1) % WS;
                 //number of frames already sent
@@ -470,11 +474,13 @@ void Node::handleMessage(cMessage *msg)
                 scheduleProcessingTime(PT);
                 // Schedule the timeout event for the sent message
                 scheduleTimeout(sent_frames);
-            }
+                }
             //terminate condition
             //all message are sent ==> terminate
             else if(sent_frames == messages.size()){
                 endSimulation();
+            }
+
         }
     }
 }
