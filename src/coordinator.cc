@@ -38,6 +38,7 @@ void Coordinator::readInput(){
                    EV<<"sender_idx "<<sender_idx<<endl;
                    sender_node =  (sender_idx=='0')?0:1;
                    startingTime = stod(line.substr(beg+1, line.size()-beg-2));
+                   EV<<"startingTime "<<startingTime<<endl;
                    output_file.open("output.txt");
                    return ;
 

@@ -159,7 +159,6 @@ void Node::cancelTimeout(int sequenceNumber) {
 void Node::send_new_line(Message_Base *new_msg, bool is_modification = false) {
     // get the message that should be sent from the messages list
     std::string message_text = messages[next_message_index + windowBeg];
-    EV<<"INDEX: "<<next_message_index + windowBeg<<endl;
     //modify a bit if the modification error exists
     if(is_modification){
         // Randomly choose an index
@@ -190,9 +189,6 @@ void Node::send_new_line(Message_Base *new_msg, bool is_modification = false) {
     // seq number(range from 0 to WS-1)
     new_msg->setSeqNum(next_message_index%WS);
 
-    EV << "Payload: " << new_msg -> getPayload() <<endl;
-    EV << "Parity: " <<new_msg->getParity()<<endl;
-    EV << "seq_num : " <<new_msg->getSeqNum()<<endl;
 }
 
 void Node::initialize()
@@ -230,25 +226,21 @@ void Node::initialize()
 
 void Node::handleMessage(cMessage *msg)
 {
-    EV<<"simTime() : "<<simTime().dbl()<<endl;
     // Check if the received message is of type cMessage (message from another nodes)
     if (dynamic_cast<Message_Base*>(msg) != nullptr) {
         // Received a Message_Base message
         Message_Base *cmsg=check_and_cast<Message_Base *> (msg);
 
-        EV<<"I'm node "<<getName()<<" ,received :"<<cmsg->getName()<<endl;
             //Initialization
             if(from_coordinator && strcmp(cmsg->getName(),"rec")==0){
                 //It's A receiver
                 isSender=false;
                 // false as the next messages won't be from coordinator
                 from_coordinator=false;
-                EV<<"i'm in receiver"<<endl;
             }
             // sender
             else if (from_coordinator){
                 //It's A sender
-                EV<<"i'm in sender"<<endl;
                 isSender=true;
                 from_coordinator = false;
                 // set the correct input file index (input0 ro input1)
@@ -279,7 +271,13 @@ void Node::handleMessage(cMessage *msg)
                     EV<<"error converting to double"<<endl;
                 }
                 else{
-                    scheduleProcessingTime(time_first_message);
+                    //printing of the first message
+                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                    EV<<"Introducing channel error with code=["<<errors[0]<<"], "<<endl;
+                    //the starting node should start reading its messages from its file on the specified starting time
+                    //PT is the time between start reading and sending
+                    //so it will send after the specified starting time + the processing time
+                    scheduleProcessingTime(time_first_message + PT);
                 }
             }
             // sender logic
@@ -325,10 +323,8 @@ void Node::handleMessage(cMessage *msg)
                     int frameType;
                     // Get the message data
                     int seqNum = cmsg -> getSeqNum();
-                    EV<< "seq_num "<< seqNum <<endl;
                     std::string payload = cmsg -> getPayload();
                     char parity = cmsg -> getParity();
-
                     // Ack and NACK are sent for in order messages only.
                     if(seqNum == expected_seq_num){
                         //Calclate the check sum and check it
@@ -338,7 +334,7 @@ void Node::handleMessage(cMessage *msg)
                          }
                         //If it is correct
                          if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
-                             EV <<"correct checksum"<<endl;
+                             EV<<"Uploading payload=["<< payload<<"] and seq_num =["<<seqNum<<"] to the network layer"<<endl;
                              expected_seq_num = (expected_seq_num + 1)%WS;
                              //Frame type:ACK=1
                              frameType = 1;
@@ -351,19 +347,24 @@ void Node::handleMessage(cMessage *msg)
                             //Frame type: NACK=0
                             frameType = 0;
                             }
+                          EV<<"At time["<< simTime().dbl() + PT <<"], Node["<<(sender_file_index==0?"1":"0")<<"]";
+                          EV<<"Sending ["<<(frameType==0?"NACK":"ACK")<<"] with number ["<<expected_seq_num<<"]";
                          //The ACK/NACK number is set as the sequence number of the next correct expected frame.
                           cmsg ->setAckNum(expected_seq_num);
                           cmsg ->setFrameType(frameType);
                           //Loss or not
                           //Loss with probability = LP
                           volatile float val = uniform(0, 1);
-                          EV << "Random value: " << val << endl;
                           if (val >= loss_probability) {
+                              EV<<" , loss [No]"<<endl;
+                              double delay = TD + PT;
                               //NO loss
                               isLoss= false;
                               //Send Ack.
-                              sendDelayed(cmsg, TD + PT, "nodeGate$o");
-                              EV<< "Ack sent " << cmsg ->getAckNum()<< endl;
+                              sendDelayed(cmsg, delay, "nodeGate$o");
+                          }
+                          else{
+                              EV<<" , loss [Yes]"<<endl;
                           }
                               //Print #4
                         }
@@ -377,6 +378,7 @@ void Node::handleMessage(cMessage *msg)
             // time out handling
             // Handle timeout event
             int expiredSequenceNumber = msg->getKind();
+            EV<<"Time out event at time ["<<simTime().dbl()<<"], at Node["<<sender_file_index<<"] for frame with seq_num=["<<expiredSequenceNumber<<"]";
             EV << "Timeout occurred for message with sequence number " << expiredSequenceNumber << "\n";
             //read again the first message time out but error free this time
             //index of the first message of the window to be sent
@@ -405,52 +407,68 @@ void Node::handleMessage(cMessage *msg)
             }
         }
         else if (msg == ProcessingTimeEvent){
-            EV <<"ProcessingTimeEvent" <<endl;
+            std::string error_bits;
+
             //check don't exceed window size
             //check messages doesn't end
             if(next_message_index <= WS && sent_frames < messages.size()){
-                EV<<"windowBeg "<<windowBeg<<endl;
                 // if the sender received non ack ==> resend the last message
                 //error free
                 if(is_non_ack){
-                    //messages[next_message_index + windowBeg]
                     //error free
-                    Message_Base *new_msg = new Message_Base();
-                    //no modification error
-                    send_new_line(new_msg,false);
-                    // No delay, No loss, No duplication
-                    sendDelayed(new_msg, TD, "nodeGate$o");
+                    error_bits = "0000";
                 }
                 else{
                     //read next message and corresponding errors
-                    std::string error_bits = errors[next_message_index + windowBeg];
+                    error_bits = errors[next_message_index + windowBeg];
+                    }
+                EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+
+                Message_Base *new_msg = new Message_Base();
+                //error_bits[0] indicates whether there is a modification error or not
+                send_new_line(new_msg,error_bits[0] == '1');
+                //printing
+                EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
+                EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
+                EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
+                EV<<"Duplicate ["<< error_bits[2]<<"],";
+                EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
+                // TD delay for all messages
+                double delay = TD;
+                //check delay
+                if(error_bits[3] == '1'){
+                    //increase the delay
+                    delay += ED;
+                }
+                //check loss error
+                if(error_bits[1]!= '1'){
+                    //no loss
+                    sendDelayed(new_msg, delay, "nodeGate$o");
+                    }
+                //check duplicate error bit
+                if(error_bits[2]== '1'){
+                    //duplicate printing
+                    EV<<"At time ["<<simTime().dbl() + DD<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+                    EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
+                    EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
+                    EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
+                    EV<<"Duplicate [2],";
+                    EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
                     //check loss error
                     if(error_bits[1]!= '1'){
-                        //no loss
-                        Message_Base *new_msg = new Message_Base();
-                        //error_bits[0] indicates whether there is a modification error or not
-                        send_new_line(new_msg,error_bits[0] == '1');
-                        // TD delay for all messages
-                        double delay = TD;
-                        //check delay
-                        if(error_bits[3] == '1'){
-                            //increase the delay
-                            delay += ED;
-                        }
-                        sendDelayed(new_msg, delay, "nodeGate$o");
-                        //check duplicate error bit
-                        if(error_bits[2]== '1'){
-                            //send duplicate version of the message
-                            sendDelayed(new_msg->dup(), delay + DD, "nodeGate$o");
-                        }
-                        }
-                    //else ==> loss
+                        //send duplicate version of the message
+                        sendDelayed(new_msg->dup(), delay + DD, "nodeGate$o");
                     }
+                }
+                //else ==> loss
                 }
                 //increment the next_message_index after sending
                 next_message_index = (next_message_index + 1) % WS;
                 //number of frames already sent
                 sent_frames+=1;
+                //print the following message prepare
+                EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"], "<<endl;
                 //set processing time delay
                 scheduleProcessingTime(PT);
                 // Schedule the timeout event for the sent message
