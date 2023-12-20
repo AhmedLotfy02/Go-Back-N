@@ -198,6 +198,8 @@ void Node::initialize()
      from_coordinator=true;
      // to indicate whether to resend the frames
      is_non_ack = false;
+     // to indicate the timeout
+     is_time_out = false;
      //wheteher the current node is sender or receiver
      isSender= true;
      // Index of the input file
@@ -373,11 +375,17 @@ void Node::handleMessage(cMessage *msg)
     }
     // generic message (a message from the same node)
     else{
+        //cancel the current PT
+        cancelProcessingTime();
         // Check if the message is a timeout alarm
         if (std::strcmp(msg->getName(),"Timeout")==0) {
+            // Delete any remaining timeout events
+            for (auto &entry : timeoutEvents) {
+                cancelAndDelete(entry.second);
+            }
             // time out handling
             // Handle timeout event
-            int expiredSequenceNumber = msg->getKind();
+            expiredSequenceNumber = msg->getKind();
             EV<<"Time out event at time ["<<simTime().dbl()<<"], at Node["<<sender_file_index<<"] for frame with seq_num=["<<expiredSequenceNumber<<"]";
             EV << "Timeout occurred for message with sequence number " << expiredSequenceNumber << "\n";
             //read again the first message time out but error free this time
@@ -385,26 +393,9 @@ void Node::handleMessage(cMessage *msg)
             next_message_index = 0;
             //send the message
             //error free
-            Message_Base *new_msg = new Message_Base();
-            //no modification error
-            send_new_line(new_msg,false);
+            is_time_out = true;
             // send after 0.001 (to break any possible ties).
             scheduleAt( simTime() + 0.001, ProcessingTimeEvent);
-            // No delay, No loss, No duplication
-            sendDelayed(new_msg, TD, "nodeGate$o");
-            //update variables
-            //finished frames
-            sent_frames = expiredSequenceNumber;
-            //increment the next_message_index after sending
-            next_message_index = (next_message_index + 1) % WS;
-            //set processing time delay
-            scheduleProcessingTime(PT);
-            // Schedule the timeout event for the newly sent message
-            scheduleTimeout(expiredSequenceNumber);
-            // Delete any remaining timeout events
-            for (auto &entry : timeoutEvents) {
-                cancelAndDelete(entry.second);
-            }
         }
         else if (msg == ProcessingTimeEvent){
             std::string error_bits;
@@ -417,6 +408,12 @@ void Node::handleMessage(cMessage *msg)
                 if(is_non_ack){
                     //error free
                     error_bits = "0000";
+                }
+                else if(is_time_out){
+                    //error free
+                    error_bits = "0000";
+                    //finished frames
+                    sent_frames = expiredSequenceNumber;
                 }
                 else{
                     //read next message and corresponding errors

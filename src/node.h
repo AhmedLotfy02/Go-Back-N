@@ -34,6 +34,10 @@ class Node : public cSimpleModule
     int next_message_index;
     // to indicate whether to resend the frames
     bool is_non_ack;
+    // to indicate timeout occured
+    bool is_time_out;
+    // the seq number of time out
+    int expiredSequenceNumber;
     // log output file
     std::ofstream output_file;
     //Reciever data
