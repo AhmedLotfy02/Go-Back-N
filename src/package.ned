@@ -12,7 +12,7 @@ network Network
         double ED = 4.0;   
         double DD = 0.1; 
         double TO = 10.0;
-        int WS=3;  
+        int WS=4;  
         int modification_random_number = 42;
         double LP = 0;
         

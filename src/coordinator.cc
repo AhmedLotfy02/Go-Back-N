@@ -30,15 +30,12 @@ void Coordinator::readInput(){
        } else {
            // Read all lines
            while ( getline(filestream, line) ) {
-                   EV<<line<<endl;
                if (line.find(',')) {
                    int beg = line.find(',');
                    // The sender node inde (0 o)
                    char sender_idx = line[beg-1];
-                   EV<<"sender_idx "<<sender_idx<<endl;
                    sender_node =  (sender_idx=='0')?0:1;
                    startingTime = stod(line.substr(beg+1, line.size()-beg-2));
-                   EV<<"startingTime "<<startingTime<<endl;
                    output_file.open("output.txt");
                    return ;
 
@@ -54,6 +51,7 @@ void Coordinator::initialize()
     // TODO - Generated method body
     readInput();
     Message_Base *senderMsg = new Message_Base(to_string(startingTime).c_str());
+    senderMsg->setFrameType(2);
     Message_Base *receiverMsg = new Message_Base("rec");
     if(sender_node == 0){
         send(receiverMsg, "port1$o");

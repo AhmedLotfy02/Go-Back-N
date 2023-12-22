@@ -275,7 +275,7 @@ void Node::handleMessage(cMessage *msg)
                 else{
                     //printing of the first message
                     EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                    EV<<"Introducing channel error with code=["<<errors[0]<<"], "<<endl;
+                    EV<<"Introducing channel error with code=["<<errors[0]<<"]"<<endl;
                     //the starting node should start reading its messages from its file on the specified starting time
                     //PT is the time between start reading and sending
                     //so it will send after the specified starting time + the processing time
@@ -336,13 +336,12 @@ void Node::handleMessage(cMessage *msg)
                          }
                         //If it is correct
                          if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
-                             EV<<"Uploading payload=["<< payload<<"] and seq_num =["<<seqNum<<"] to the network layer"<<endl;
                              expected_seq_num = (expected_seq_num + 1)%WS;
                              //Frame type:ACK=1
                              frameType = 1;
                              //Deframing
                              std::string destuffedFrame = byteDestuffing(payload);
-                             //Print #5
+                             EV<<"Uploading payload=["<< destuffedFrame<<"] and seq_num =["<<seqNum<<"] to the network layer"<<endl;
                         }
                         //Else
                         else{
@@ -469,7 +468,7 @@ void Node::handleMessage(cMessage *msg)
                 sent_frames+=1;
                 //print the following message prepare
                 EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"], "<<endl;
+                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
                 //set processing time delay
                 scheduleProcessingTime(PT);
                 // Schedule the timeout event for the sent message
