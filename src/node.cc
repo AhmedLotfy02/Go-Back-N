@@ -199,6 +199,7 @@ void Node::initialize()
      // to indicate whether to resend the frames
      is_non_ack = false;
      is_ack = false;
+     is_already_set=false;
      // to indicate the timeout
      is_time_out = false;
      //wheteher the current node is sender or receiver
@@ -206,7 +207,9 @@ void Node::initialize()
      // Index of the input file
      sender_file_index=0;
      // Index of the ack number received from the receiver
-     last_acked_frame = 0;
+     acked_frame = 0;
+     // Index of the previous ack number received from the receiver
+     previous_acked_frame = 0;
      // the true seq number expected in the receiver side
      expected_seq_num=0;
      // Index of the message to be sent
@@ -290,44 +293,53 @@ void Node::handleMessage(cMessage *msg)
             if(isSender){
                 // if ack/not ack is received
                 if(cmsg->getFrameType()==1){
-                    last_acked_frame = cmsg->getAckNum();
+                    EV<<"ACK Ack "<<endl;
+                    int number_of_frames;
+                    acked_frame = cmsg->getAckNum();
                     // Cancel the timeout of the last message before the ack number
                     //accumulative cancel
-                    cancelTimeout(windowBeg + last_acked_frame - 1);
+                    cancelTimeout(windowBeg + acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
-                    windowBeg = (windowBeg + last_acked_frame);
-                    // set the first index to send according to the new window
-                    //if it is the normal sending and an ack within the window received
-                    if(last_acked_frame < next_message_index){
-                        next_message_index = (next_message_index - last_acked_frame) % WS;
+                    //acked_frame - previous_acked_frame ==> to get number of frames acked
+
+                    //2 acks within the same window
+                    if(acked_frame > previous_acked_frame){
+                        number_of_frames = acked_frame - previous_acked_frame;
+                        windowBeg = windowBeg + number_of_frames;
+                        if(last_sent_index > next_message_index){
+                            next_message_index = last_sent_index - number_of_frames;
+                        }
+                        else{
+                            next_message_index = next_message_index - number_of_frames;
+                        }
+
                     }
-                    //if it is the resending and an ack received for a message after the current index
+                    //ack in the new window
                     else{
-                        next_message_index=0;
+                        windowBeg = acked_frame;
+                        next_message_index = 0 ;
                     }
                     is_ack = true;
-                    /*
-                    //cancel current PT so not crash
-                    cancelProcessingTime();
-                    //the next message PT
-                    scheduleProcessingTime(PT);
-                    */
+                    previous_acked_frame = acked_frame;
+
+                    EV<< "windowBeg " <<windowBeg<<endl;
+                    EV<< "next_message_index " <<next_message_index<<endl;
                 }
                 // if non ack ==> resend the frame with non ack
                 else if (cmsg->getFrameType()==0){
-                    last_acked_frame = cmsg->getAckNum();
+                    acked_frame = cmsg->getAckNum();
                     // Cancel the timeout of the last message before the ack number
                     //accumulative cancel
-                    cancelTimeout(windowBeg + last_acked_frame - 1);
+                    cancelTimeout(windowBeg + acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
-                    windowBeg = (windowBeg + last_acked_frame) % WS;
+                    windowBeg = (windowBeg + acked_frame) % WS;
                     //the first message in the new window
                     next_message_index = 0;
                     //to send the errored message again “error free this time”
                     is_non_ack = true;
                     //upon receiving a NACK , the sender will stop what he is processing
                     cancelProcessingTime();
-                    //the message is sent after the processing time +0.001 (to break any possible ties).
+                    //the message is sent after the processing time + 0.001 (to break any possible ties).
                     scheduleProcessingTime(PT + 0.001);
                     }
             }
@@ -385,7 +397,6 @@ void Node::handleMessage(cMessage *msg)
                           else{
                               EV<<" , loss [Yes]"<<endl;
                           }
-                              //Print #4
                         }
                 }
             }
@@ -429,7 +440,7 @@ void Node::handleMessage(cMessage *msg)
                     //error free
                     error_bits = "0000";
                     //finished frames
-                    sent_frames = last_acked_frame;
+                    sent_frames = acked_frame;
                 }
                 else if(is_time_out){
                     //error free
@@ -437,15 +448,19 @@ void Node::handleMessage(cMessage *msg)
                     //finished frames
                     sent_frames = expiredSequenceNumber;
                 }
-                else{
+                else if(!is_already_set){
                     //read next message and corresponding errors
                     error_bits = errors[next_message_index + windowBeg];
                     }
                 EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
-
-                Message_Base *new_msg = new Message_Base();
                 //error_bits[0] indicates whether there is a modification error or not
-                send_new_line(new_msg,error_bits[0] == '1');
+                Message_Base *new_msg = new Message_Base();
+                if(!is_already_set){
+                    send_new_line(new_msg,error_bits[0] == '1');
+                }
+                else{
+                    new_msg = setted_message ->dup();
+                }
                 //printing
                 EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
                 EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
@@ -512,12 +527,20 @@ void Node::handleMessage(cMessage *msg)
                 }
                 }
             else if(is_ack){
+                //reset the flag
+                is_ack = false;
                 //to continue sending from the next PT
                 is_window_ended = false;
                 //print the message prepare
                 EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
                 EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
-                // send after PTs
+                setted_message = new Message_Base();
+                std::string error_bits = errors[next_message_index + windowBeg];
+                //error_bits[0] indicates whether there is a modification error or not
+                send_new_line(setted_message,error_bits[0] == '1');
+                last_sent_index = (next_message_index + 1);
+                is_already_set = true;
+                // send after PT
                 scheduleProcessingTime(PT);
             }
             else if(is_window_ended){

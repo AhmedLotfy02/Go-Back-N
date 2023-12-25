@@ -12,6 +12,8 @@ using namespace omnetpp;
 class Node : public cSimpleModule
 {
   protected:
+    //if we setted the message outside ProcessingTimeEvent handling
+    Message_Base *setted_message;
     // handling timeout Event
     cMessage *timeoutEvent;
     // Handling processing time after reading a line
@@ -28,8 +30,10 @@ class Node : public cSimpleModule
     bool from_coordinator;
     //to indicate the index of the node to read the file
     int sender_file_index;
-    //to indicate the number of frames send and acknowledged to compare it with the number of messagse
-    int last_acked_frame;
+    //the received ack number
+    int acked_frame;
+    //the previous received ack number
+    int previous_acked_frame;
     //keep track of sent messages
     int next_message_index;
     // to indicate whether to resend the frames
@@ -40,14 +44,18 @@ class Node : public cSimpleModule
     int expiredSequenceNumber;
     // log output file
     std::ofstream output_file;
-    //Reciever data
+    //Receiver data
     int expected_seq_num;
     //number of frames already sent
     int sent_frames = 0;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
-
+    //indicator that we are handling ack
     bool is_ack;
+    // indicator that we set the message data outside ProcessingTimeEvent handling
+    bool is_already_set;
+
+    int last_sent_index = 0;
     // Map to store timeout events for each message
     std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
