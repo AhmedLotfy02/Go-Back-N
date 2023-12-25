@@ -212,6 +212,9 @@ void Node::initialize()
      next_message_index = 0;
      // the beginning of the window now
      windowBeg = 0;
+     //will be true if the window ended
+     //will be false if the winoe beginning changed or resending
+     is_window_ended= false;
      // Get the parameters to use in sending and receiving
      TD = getParentModule()->par("TD").doubleValue();
      PT = getParentModule()->par("PT").doubleValue();
@@ -273,9 +276,6 @@ void Node::handleMessage(cMessage *msg)
                     EV<<"error converting to double"<<endl;
                 }
                 else{
-                    //printing of the first message
-                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                    EV<<"Introducing channel error with code=["<<errors[0]<<"]"<<endl;
                     //the starting node should start reading its messages from its file on the specified starting time
                     //PT is the time between start reading and sending
                     //so it will send after the specified starting time + the processing time
@@ -291,9 +291,24 @@ void Node::handleMessage(cMessage *msg)
                     //accumulative cancel
                     cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
-                    windowBeg = (windowBeg + last_acked_frame) % WS;
+                    windowBeg = (windowBeg + last_acked_frame);
+                    //to send within the new window
+                    is_window_ended=false;
                     // set the first index to send according to the new window
-                    next_message_index = (next_message_index - last_acked_frame) % WS;
+                    //if it is the normal sending and an ack within the window received
+                    if(last_acked_frame < next_message_index){
+                        next_message_index = (next_message_index - last_acked_frame) % WS;
+                    }
+                    //if it is the resending and an ack received for a message after the current index
+                    else{
+                        next_message_index=0;
+                    }
+                    /*
+                    //cancel current PT so not crash
+                    cancelProcessingTime();
+                    //the next message PT
+                    scheduleProcessingTime(PT);
+                    */
                 }
                 // if non ack ==> resend the frame with non ack
                 else if (cmsg->getFrameType()==0){
@@ -307,6 +322,8 @@ void Node::handleMessage(cMessage *msg)
                     next_message_index = 0;
                     //to send the errored message again “error free this time”
                     is_non_ack = true;
+                    //to allow resending
+                    is_window_ended=false;
                     //upon receiving a NACK , the sender will stop what he is processing
                     cancelProcessingTime();
                     //the message is sent after the processing time +0.001 (to break any possible ties).
@@ -393,15 +410,19 @@ void Node::handleMessage(cMessage *msg)
             //send the message
             //error free
             is_time_out = true;
+            //to resend
+            is_window_ended= false;
             // send after 0.001 (to break any possible ties).
             scheduleAt( simTime() + 0.001, ProcessingTimeEvent);
         }
+        //check if the message is a processing time ends so start sending
         else if (msg == ProcessingTimeEvent){
             std::string error_bits;
 
             //check don't exceed window size
             //check messages doesn't end
-            if(next_message_index <= WS && sent_frames < messages.size()){
+            //if(next_message_index <= WS && sent_frames < messages.size()){
+            if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
                 // if the sender received non ack ==> resend the last message
                 //error free
                 if(is_non_ack){
@@ -420,6 +441,10 @@ void Node::handleMessage(cMessage *msg)
                     //read next message and corresponding errors
                     error_bits = errors[next_message_index + windowBeg];
                     }
+                //print the message prepare
+                EV<<"AT ["<<simTime().dbl() - PT<<"], Node["<<sender_file_index<<"], ";
+                EV<<"Introducing channel error with code=["<<error_bits<<"]"<<endl;
+
                 EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
 
                 Message_Base *new_msg = new Message_Base();
@@ -462,18 +487,35 @@ void Node::handleMessage(cMessage *msg)
                     }
                 }
                 //else ==> loss
-                //increment the next_message_index after sending
-                next_message_index = (next_message_index + 1) % WS;
-                //number of frames already sent
-                sent_frames+=1;
-                //print the following message prepare
-                EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
-                //set processing time delay
-                scheduleProcessingTime(PT);
-                // Schedule the timeout event for the sent message
-                scheduleTimeout(sent_frames);
+                if(next_message_index == WS-1){
+                    //the first time this if condition is met
+                    if(!is_window_ended){
+                        //number of frames already sent
+                        sent_frames+=1;
+                    }
+                    //the window ends
+                    //stop sending until ack, non ack or timeout
+                    is_window_ended=true;
+                    // index will be updated in the new window
+                    next_message_index = WS;
+                    //set processing time delay (so the simulator doesn't end simulation)
+                    scheduleProcessingTime(PT);
                 }
+                else{
+                    //increment the next_message_index after sending
+                    next_message_index = (next_message_index + 1) % WS;
+                    //number of frames already sent
+                    sent_frames+=1;
+                    //set processing time delay
+                    scheduleProcessingTime(PT);
+                    // Schedule the timeout event for the sent message
+                    scheduleTimeout(sent_frames);
+                }
+                }
+            else if(is_window_ended){
+                //call the function until re sending occurs
+                scheduleProcessingTime(PT);
+            }
             //terminate condition
             //all message are sent ==> terminate
             else if(sent_frames == messages.size()){
