@@ -198,6 +198,7 @@ void Node::initialize()
      from_coordinator=true;
      // to indicate whether to resend the frames
      is_non_ack = false;
+     is_ack = false;
      // to indicate the timeout
      is_time_out = false;
      //wheteher the current node is sender or receiver
@@ -278,6 +279,9 @@ void Node::handleMessage(cMessage *msg)
                 else{
                     //the starting node should start reading its messages from its file on the specified starting time
                     //PT is the time between start reading and sending
+                    //print the message prepare
+                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                    EV<<"Introducing channel error with code=["<<errors[0]<<"]"<<endl;
                     //so it will send after the specified starting time + the processing time
                     scheduleProcessingTime(time_first_message + PT);
                 }
@@ -292,8 +296,6 @@ void Node::handleMessage(cMessage *msg)
                     cancelTimeout(windowBeg + last_acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
                     windowBeg = (windowBeg + last_acked_frame);
-                    //to send within the new window
-                    is_window_ended=false;
                     // set the first index to send according to the new window
                     //if it is the normal sending and an ack within the window received
                     if(last_acked_frame < next_message_index){
@@ -303,6 +305,7 @@ void Node::handleMessage(cMessage *msg)
                     else{
                         next_message_index=0;
                     }
+                    is_ack = true;
                     /*
                     //cancel current PT so not crash
                     cancelProcessingTime();
@@ -322,8 +325,6 @@ void Node::handleMessage(cMessage *msg)
                     next_message_index = 0;
                     //to send the errored message again “error free this time”
                     is_non_ack = true;
-                    //to allow resending
-                    is_window_ended=false;
                     //upon receiving a NACK , the sender will stop what he is processing
                     cancelProcessingTime();
                     //the message is sent after the processing time +0.001 (to break any possible ties).
@@ -418,7 +419,6 @@ void Node::handleMessage(cMessage *msg)
         //check if the message is a processing time ends so start sending
         else if (msg == ProcessingTimeEvent){
             std::string error_bits;
-
             //check don't exceed window size
             //check messages doesn't end
             //if(next_message_index <= WS && sent_frames < messages.size()){
@@ -441,10 +441,6 @@ void Node::handleMessage(cMessage *msg)
                     //read next message and corresponding errors
                     error_bits = errors[next_message_index + windowBeg];
                     }
-                //print the message prepare
-                EV<<"AT ["<<simTime().dbl() - PT<<"], Node["<<sender_file_index<<"], ";
-                EV<<"Introducing channel error with code=["<<error_bits<<"]"<<endl;
-
                 EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
 
                 Message_Base *new_msg = new Message_Base();
@@ -504,6 +500,9 @@ void Node::handleMessage(cMessage *msg)
                 else{
                     //increment the next_message_index after sending
                     next_message_index = (next_message_index + 1) % WS;
+                    //print the message prepare
+                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                    EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
                     //number of frames already sent
                     sent_frames+=1;
                     //set processing time delay
@@ -512,6 +511,15 @@ void Node::handleMessage(cMessage *msg)
                     scheduleTimeout(sent_frames);
                 }
                 }
+            else if(is_ack){
+                //to continue sending from the next PT
+                is_window_ended = false;
+                //print the message prepare
+                EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
+                // send after PTs
+                scheduleProcessingTime(PT);
+            }
             else if(is_window_ended){
                 //call the function until re sending occurs
                 scheduleProcessingTime(PT);
