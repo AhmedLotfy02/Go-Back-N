@@ -21,6 +21,6 @@ package gobackn;
 simple Coordinator
 {
     gates:
-        inout port0;
-        inout port1;
+        output port0;
+        output port1;
 }

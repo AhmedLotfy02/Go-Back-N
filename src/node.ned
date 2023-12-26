@@ -21,6 +21,6 @@ package gobackn;
 simple Node
 {       
     gates:
-        inout coordinatorGate;
+        input coordinatorGate;
         inout nodeGate;
 }

@@ -1,5 +1,5 @@
 #include "node.h"
-#include<fstream>
+#include <fstream>
 #include "message_m.h"
 #include <string>
 #include <bitset>
@@ -63,14 +63,10 @@ std::bitset<8> Node::calculateChecksum(const std::string& str) {
 }
 
 //Function to read input file
-void Node::readInput(const char *filename){
-       std::ifstream filestream;
+void Node::readInput(std::ifstream filestream){
        std::string line;
-
-       filestream.open(filename, std::ifstream::in);
-
        if(!filestream) {
-           throw cRuntimeError("Error opening file '%s'?", filename);
+           EV<<"error with reading file"<<endl;
        } else {
            while ( getline(filestream, line) ) {
                // 4 bits of error
@@ -194,12 +190,9 @@ void Node::send_new_line(Message_Base *new_msg, bool is_modification = false) {
 void Node::initialize()
 {
      isTimeout=false;
-     // will be set false after recieving from the coordinator and start the sending between the sender and the receiver
-     from_coordinator=true;
      // to indicate whether to resend the frames
      is_non_ack = false;
      is_ack = false;
-     is_already_set=false;
      // to indicate the timeout
      is_time_out = false;
      //wheteher the current node is sender or receiver
@@ -219,6 +212,7 @@ void Node::initialize()
      //will be true if the window ended
      //will be false if the winoe beginning changed or resending
      is_window_ended= false;
+
      // Get the parameters to use in sending and receiving
      TD = getParentModule()->par("TD").doubleValue();
      PT = getParentModule()->par("PT").doubleValue();
@@ -240,65 +234,55 @@ void Node::handleMessage(cMessage *msg)
         // Received a Message_Base message
         Message_Base *cmsg=check_and_cast<Message_Base *> (msg);
 
-            //Initialization
-            if(from_coordinator && strcmp(cmsg->getName(),"rec")==0){
-                //It's A receiver
-                isSender=false;
-                // false as the next messages won't be from coordinator
-                from_coordinator=false;
-            }
-            // sender
-            else if (from_coordinator){
-                //It's A sender
-                isSender=true;
-                from_coordinator = false;
-                // set the correct input file index (input0 ro input1)
-                if(strcmp( getName(),"node0")==0){
-                    sender_file_index=0;
-                }
-                else{
-                    sender_file_index=1;
-                }
-                //read the corresponding file
-                std::string filename="";
-                std::string name="Donia";
-                if(name=="heba")
-                    filename="E:/CMP4/Networks/Go-Back-N/src/input"+std::to_string(sender_file_index)+".txt";
-                else if(name=="shaza")
-                    filename="D:/Shozy/Networks/project/Go-Back-N/src/input"+std::to_string(sender_file_index)+".txt";
-                else if(name=="ahmed")
-                    filename="C:/Users/LP-7263/Documents/CMP4/Networks/Project/Go-Back-N/src/input"+std::to_string(sender_file_index)+".txt";
-                else if(name=="Donia")
-                    filename="/home/donia/Desktop/college/networks/Go-Back-N/src/input"+std::to_string(sender_file_index)+".txt";
-                readInput(filename.c_str());
 
-                // get time of the first message
-                // Convert const char* to double
-                char* endPtr;
-                double time_first_message = std::strtod(cmsg->getName(), &endPtr);
-                if (*endPtr != '\0') {
-                    EV<<"error converting to double"<<endl;
+        // Check the arrival gate of the received message
+            if (msg->getArrivalGate() == gate("coordinatorGate")) {
+                if(strcmp(cmsg->getName(),"rec")==0){
+                    //It's A receiver
+                    isSender=false;
                 }
                 else{
-                    //the starting node should start reading its messages from its file on the specified starting time
-                    //PT is the time between start reading and sending
-                    //print the message prepare
-                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                    EV<<"Introducing channel error with code=["<<errors[0]<<"]"<<endl;
-                    //so it will send after the specified starting time + the processing time
-                    scheduleProcessingTime(time_first_message + PT);
+                    //It's A sender
+                    isSender=true;
+                    // set the correct input file index (input0 ro input1)
+                    if(strcmp( getName(),"node0")==0){
+                        sender_file_index=0;
+                    }
+                    else{
+                        sender_file_index=1;
+                    }
+                    //read the corresponding file
+                    std::string filename="../src/input"+std::to_string(sender_file_index)+".txt";
+                    std::ifstream filestream(filename);
+                    if (filestream.is_open()) {
+                        readInput(std::move(filestream));  // Use std::move to transfer ownership
+                    } else {
+                        std::cerr << "Error opening file." << std::endl;
+                    }
+
+                    // get time of the first message
+                    // Convert const char* to double
+                    char* endPtr;
+                    double time_first_message = std::strtod(cmsg->getName(), &endPtr);
+                    if (*endPtr != '\0') {
+                        EV<<"error converting to double"<<endl;
+                    }
+                    else{
+                        //the starting node should start reading its messages from its file on the specified starting time
+                        //PT is the time between start reading and sending
+
+                    }
                 }
             }
             // sender logic
             if(isSender){
                 // if ack/not ack is received
                 if(cmsg->getFrameType()==1){
+                    cancelProcessingTime();
                     EV<<"ACK Ack "<<endl;
+                    EV<< "next_message_index " <<next_message_index<<endl;
                     int number_of_frames;
                     acked_frame = cmsg->getAckNum();
-                    // Cancel the timeout of the last message before the ack number
-                    //accumulative cancel
-                    cancelTimeout(windowBeg + acked_frame - 1);
                     // increment the windowBeg by the number of frames acked
                     //acked_frame - previous_acked_frame ==> to get number of frames acked
 
@@ -306,24 +290,37 @@ void Node::handleMessage(cMessage *msg)
                     if(acked_frame > previous_acked_frame){
                         number_of_frames = acked_frame - previous_acked_frame;
                         windowBeg = windowBeg + number_of_frames;
-                        if(last_sent_index > next_message_index){
-                            next_message_index = last_sent_index - number_of_frames;
-                        }
-                        else{
-                            next_message_index = next_message_index - number_of_frames;
-                        }
-
+                        next_message_index = next_message_index - number_of_frames;
+                        EV<<"Here 1"<<endl;
                     }
                     //ack in the new window
                     else{
-                        windowBeg = acked_frame;
+                        EV<<"Here 2"<<endl;
+                        //(windowBeg / WS) ==> window number
+                        //window
+                        windowBeg = (windowBeg / WS)+ WS + acked_frame;
                         next_message_index = 0 ;
                     }
+                    // Cancel the timeout of the last message before the ack number
+                    //accumulative cancel
+                    cancelTimeout(windowBeg - 1);
                     is_ack = true;
                     previous_acked_frame = acked_frame;
 
                     EV<< "windowBeg " <<windowBeg<<endl;
                     EV<< "next_message_index " <<next_message_index<<endl;
+                    EV<< "number_of_frames "<<number_of_frames<<endl;
+                    is_window_ended = false;
+                    //print the message prepare
+                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                    EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
+                    scheduleProcessingTime(PT);
+                    /*
+                    //cancel current PT so not crash
+                    cancelProcessingTime();
+                    //the next message PT
+                    scheduleProcessingTime(PT);
+                    */
                 }
                 // if non ack ==> resend the frame with non ack
                 else if (cmsg->getFrameType()==0){
@@ -339,7 +336,7 @@ void Node::handleMessage(cMessage *msg)
                     is_non_ack = true;
                     //upon receiving a NACK , the sender will stop what he is processing
                     cancelProcessingTime();
-                    //the message is sent after the processing time + 0.001 (to break any possible ties).
+                    //the message is sent after the processing time +0.001 (to break any possible ties).
                     scheduleProcessingTime(PT + 0.001);
                     }
             }
@@ -397,6 +394,7 @@ void Node::handleMessage(cMessage *msg)
                           else{
                               EV<<" , loss [Yes]"<<endl;
                           }
+                              //Print #4
                         }
                 }
             }
@@ -448,19 +446,15 @@ void Node::handleMessage(cMessage *msg)
                     //finished frames
                     sent_frames = expiredSequenceNumber;
                 }
-                else if(!is_already_set){
+                else{
                     //read next message and corresponding errors
                     error_bits = errors[next_message_index + windowBeg];
                     }
                 EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
-                //error_bits[0] indicates whether there is a modification error or not
+
                 Message_Base *new_msg = new Message_Base();
-                if(!is_already_set){
-                    send_new_line(new_msg,error_bits[0] == '1');
-                }
-                else{
-                    new_msg = setted_message ->dup();
-                }
+                //error_bits[0] indicates whether there is a modification error or not
+                send_new_line(new_msg,error_bits[0] == '1');
                 //printing
                 EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
                 EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
@@ -527,21 +521,12 @@ void Node::handleMessage(cMessage *msg)
                 }
                 }
             else if(is_ack){
-                //reset the flag
-                is_ack = false;
+                EV<<"In is_ack 2"<<endl;
                 //to continue sending from the next PT
-                is_window_ended = false;
+                //is_window_ended = false;
                 //print the message prepare
                 EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
                 EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
-                setted_message = new Message_Base();
-                std::string error_bits = errors[next_message_index + windowBeg];
-                //error_bits[0] indicates whether there is a modification error or not
-                send_new_line(setted_message,error_bits[0] == '1');
-                last_sent_index = (next_message_index + 1);
-                is_already_set = true;
-                // send after PT
-                scheduleProcessingTime(PT);
             }
             else if(is_window_ended){
                 //call the function until re sending occurs

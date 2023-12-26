@@ -28,8 +28,8 @@ network Network
             @display("p=623,151");
         }
     connections:
-        coordinator.port0 <--> node0.coordinatorGate;
-        coordinator.port1 <--> node1.coordinatorGate;
+        coordinator.port0 --> node0.coordinatorGate;
+        coordinator.port1 --> node1.coordinatorGate;
         node0.nodeGate <--> node1.nodeGate;
 }
 

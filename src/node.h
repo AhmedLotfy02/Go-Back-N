@@ -12,8 +12,6 @@ using namespace omnetpp;
 class Node : public cSimpleModule
 {
   protected:
-    //if we setted the message outside ProcessingTimeEvent handling
-    Message_Base *setted_message;
     // handling timeout Event
     cMessage *timeoutEvent;
     // Handling processing time after reading a line
@@ -26,12 +24,11 @@ class Node : public cSimpleModule
     std::vector<std::string>messages,errors;
     //is there timeout or not
     bool isTimeout;
-    //to indicate the configuration phase
-    bool from_coordinator;
     //to indicate the index of the node to read the file
     int sender_file_index;
     //the received ack number
     int acked_frame;
+    int last_sent_index = 0;
     //the previous received ack number
     int previous_acked_frame;
     //keep track of sent messages
@@ -44,18 +41,14 @@ class Node : public cSimpleModule
     int expiredSequenceNumber;
     // log output file
     std::ofstream output_file;
-    //Receiver data
+    //Reciever data
     int expected_seq_num;
     //number of frames already sent
     int sent_frames = 0;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
-    //indicator that we are handling ack
-    bool is_ack;
-    // indicator that we set the message data outside ProcessingTimeEvent handling
-    bool is_already_set;
 
-    int last_sent_index = 0;
+    bool is_ack;
     // Map to store timeout events for each message
     std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
@@ -71,7 +64,7 @@ class Node : public cSimpleModule
     virtual void handleMessage(cMessage *msg) override;
 
     // function to read input file
-    void readInput(const char *filename);
+    void readInput(std::ifstream filestream);
 
     // function to apply byteStuffing in sender side
     std::string byteStuffing(std::string frame);
