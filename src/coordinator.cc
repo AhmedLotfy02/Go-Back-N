@@ -7,7 +7,7 @@ using namespace std;
 Define_Module(Coordinator);
 
 void Coordinator::readInput(){
-        ifstream filestream("../src/coordinator.txt");
+        ifstream filestream("../src/coordinatorfile.txt");
         string line;
        if(!filestream.is_open()) {
            EV<<"error with reading file"<<endl;

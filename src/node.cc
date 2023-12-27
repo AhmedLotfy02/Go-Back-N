@@ -202,23 +202,27 @@ void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = fal
 
 }
 void Node::my_message_handling(bool is_non_ack){
+
     if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
         Message_Base *new_msg = new Message_Base();
         std::string error_bits = errors[next_message_index + windowBeg];
+        EV<<endl;
         //the first frame after receiving a non ack
         if(is_non_ack && timing_idx == 0){
             //error free
             error_bits = "0000";
             //modify number os sent frames, as we will resend frames starting from the ack number
             sent_frames = next_message_index + windowBeg;
-            //remove PT from the first frame
-            timing_idx = -1;
+            //remove preparation message and PT from the first frame
         }
+        else{
+            EV<<"AT ["<<simTime().dbl() + (timing_idx)*PT<<"], Node["<<sender_file_index<<"], ";
+            EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
+        }
+
         //error_bits[0] indicates whether there is a modification error or not
         prepare_new_message(new_msg,error_bits[0] == '1');
         //printing
-        EV<<"AT ["<<simTime().dbl() + (timing_idx)*PT<<"], Node["<<sender_file_index<<"], ";
-        EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
         EV<<"At time ["<<simTime().dbl() + timing_idx*PT + PT<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
         EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
         EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
@@ -227,12 +231,15 @@ void Node::my_message_handling(bool is_non_ack){
         EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
         // TD delay for all messages
         //initial PT will be added to all messages
+
         double delay = TD + PT;
+
         //check delay
         if(error_bits[3] == '1'){
             //increase the delay
             delay += ED;
         }
+
         //check loss error
         if(error_bits[1]!= '1'){
             //no loss
@@ -241,6 +248,7 @@ void Node::my_message_handling(bool is_non_ack){
         else{
             cancelAndDelete(new_msg);
         }
+
         //check duplicate error bit
         if(error_bits[2]== '1'){
             //duplicate printing
@@ -256,6 +264,7 @@ void Node::my_message_handling(bool is_non_ack){
                 sendDelayed(new_msg->dup(), delay + DD + PT*timing_idx, "nodeGate$o");
             }
         }
+
         if(next_message_index == WS-1){
             //the first time this if condition is met
             if(!is_window_ended){
@@ -269,6 +278,7 @@ void Node::my_message_handling(bool is_non_ack){
             next_message_index = WS;
             next_seq = next_seq + 1;
     }
+
     else{
         //increment the next_message_index after sending
         next_message_index = (next_message_index + 1) % WS;
@@ -382,7 +392,7 @@ void Node::handleMessage(cMessage *msg)
                         acked_frame = cmsg->getAckNum();
                         //acked_frame - previous_acked_frame ==> to get number of frames acked
                         //2 acks within the same window
-                        if(acked_frame > previous_acked_frame){
+                        if(acked_frame >= previous_acked_frame){
                             number_of_frames = acked_frame - previous_acked_frame;
                         }
                         //ack in the new window
@@ -392,6 +402,10 @@ void Node::handleMessage(cMessage *msg)
                         // increment the windowBeg by the number of frames acked
                         windowBeg = windowBeg + number_of_frames;
                         next_message_index = next_message_index - number_of_frames;
+                        //if non ack ==> resend from the first index in the new window
+                        if(cmsg->getFrameType()==0){
+                            next_message_index = 0;
+                        }
                         // Cancel the timeout of the last message before the ack number
                         //accumulative cancel
                         cancelTimeout(windowBeg - 1);
@@ -403,6 +417,7 @@ void Node::handleMessage(cMessage *msg)
                         for(int i = next_message_index; i< windowBeg+ WS; i++){
                             my_message_handling(cmsg->getFrameType()==0);
                         }
+
                     }
                 }
                 //Receiver logic
