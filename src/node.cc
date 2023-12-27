@@ -135,21 +135,12 @@ void Node::readInput(std::ifstream filestream){
 //    }
 //
 //}
-// Start the PT
-void Node::scheduleProcessingTime(double PT) {
-    // Start new timeout
-    scheduleAt( simTime() + PT, ProcessingTimeEvent);
-}
-// Cancel the processing time when receiving non ack
-void Node::cancelProcessingTime() {
-    cancelEvent(ProcessingTimeEvent);
-}
 
-void Node::scheduleTimeout(int sequenceNumber) {
+void Node::scheduleTimeout(int sequenceNumber, double sending_time) {
     // Schedule a new timeout event for the given sequence number
     cMessage *timeoutEvent = new cMessage("Timeout");
     timeoutEvent->setKind(sequenceNumber);
-    scheduleAt(simTime() + TO, timeoutEvent);  // Set timeout duration (adjust as needed)
+    scheduleAt(simTime() + sending_time +  TO, timeoutEvent);  // Set timeout duration (adjust as needed)
     // Store the timeout event in the map
     timeoutEvents[sequenceNumber] = timeoutEvent;
 }
@@ -201,19 +192,23 @@ void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = fal
     new_msg->setSeqNum(next_seq%WS);
 
 }
-void Node::my_message_handling(bool is_non_ack){
-
+void Node::my_message_handling(bool is_non_ack, bool is_time_out){
     if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
         Message_Base *new_msg = new Message_Base();
         std::string error_bits = errors[next_message_index + windowBeg];
-        EV<<endl;
+        //EV<<endl;
         //the first frame after receiving a non ack
-        if(is_non_ack && timing_idx == 0){
+        if(is_non_ack && timing_idx == -1){
             //error free
             error_bits = "0000";
             //modify number os sent frames, as we will resend frames starting from the ack number
             sent_frames = next_message_index + windowBeg;
-            //remove preparation message and PT from the first frame
+        }
+        else if(is_time_out && timing_idx == -1){
+            //error free
+            error_bits = "0000";
+            //modify number os sent frames, as we will resend frames starting from the ack number
+            sent_frames = expiredSequenceNumber;
         }
         else{
             EV<<"AT ["<<simTime().dbl() + (timing_idx)*PT<<"], Node["<<sender_file_index<<"], ";
@@ -264,7 +259,8 @@ void Node::my_message_handling(bool is_non_ack){
                 sendDelayed(new_msg->dup(), delay + DD + PT*timing_idx, "nodeGate$o");
             }
         }
-
+        // Schedule the timeout event for the sent message
+        scheduleTimeout(sent_frames, timing_idx*PT + PT);
         if(next_message_index == WS-1){
             //the first time this if condition is met
             if(!is_window_ended){
@@ -285,19 +281,18 @@ void Node::my_message_handling(bool is_non_ack){
         next_seq = next_seq + 1;
         //number of frames already sent
         sent_frames+=1;
-        // Schedule the timeout event for the sent message
-        scheduleTimeout(sent_frames);
+
     }
         timing_idx = timing_idx+1;
+    }
+    //terminate condition
+    //all message are sent ==> terminate
+    else if(sent_frames == messages.size()){
+        endSimulation();
     }
 }
 void Node::initialize()
 {
-     isTimeout=false;
-     // to indicate whether to resend the frames
-     is_non_ack = false;
-     // to indicate the timeout
-     is_time_out = false;
      //wheteher the current node is sender or receiver
      isSender= true;
      // Index of the input file
@@ -330,7 +325,6 @@ void Node::initialize()
 
      // initialize messages
      timeoutEvent = new cMessage();
-     ProcessingTimeEvent = new cMessage();
 }
 
 void Node::handleMessage(cMessage *msg)
@@ -413,9 +407,14 @@ void Node::handleMessage(cMessage *msg)
                         previous_acked_frame = acked_frame;
                         is_window_ended = false;
                         //from the next message to send to the end of the new window
-                        timing_idx = 0;
+                        if(cmsg->getFrameType()==0){
+                            timing_idx = -1;
+                        }
+                        else{
+                            timing_idx = 0;
+                        }
                         for(int i = next_message_index; i< windowBeg+ WS; i++){
-                            my_message_handling(cmsg->getFrameType()==0);
+                            my_message_handling(cmsg->getFrameType()==0, false);
                         }
 
                     }
@@ -476,140 +475,30 @@ void Node::handleMessage(cMessage *msg)
         //from the beginning of the message to the end of the first window
         timing_idx = 0;
         for (int i = 0; i< WS ; i++){
-            my_message_handling(false);
+            my_message_handling(false, false);
         }
     }
-    // generic message (a message from the same node)
-    else{
-        //cancel the current PT
-        cancelProcessingTime();
-        // Check if the message is a timeout alarm
-        if (std::strcmp(msg->getName(),"Timeout")==0) {
-            // Delete any remaining timeout events
-            for (auto &entry : timeoutEvents) {
-                cancelAndDelete(entry.second);
-            }
-            // time out handling
-            // Handle timeout event
-            expiredSequenceNumber = msg->getKind();
-            EV<<"Time out event at time ["<<simTime().dbl()<<"], at Node["<<sender_file_index<<"] for frame with seq_num=["<<expiredSequenceNumber<<"]";
-            EV << "Timeout occurred for message with sequence number " << expiredSequenceNumber << "\n";
-            //read again the first message time out but error free this time
-            //index of the first message of the window to be sent
-            next_message_index = 0;
-            //send the message
-            //error free
-            is_time_out = true;
-            //to resend
-            is_window_ended= false;
-            // send after 0.001 (to break any possible ties).
-            scheduleAt( simTime() + 0.001, ProcessingTimeEvent);
+    // Check if the message is a timeout alarm
+    else if (std::strcmp(msg->getName(),"Timeout")==0) {
+        // Delete any remaining timeout events
+        for (auto &entry : timeoutEvents) {
+            cancelAndDelete(entry.second);
         }
-        //check if the message is a processing time ends so start sending
-        else if (msg == ProcessingTimeEvent){
-            std::string error_bits;
-            //check don't exceed window size
-            //check messages doesn't end
-            //if(next_message_index <= WS && sent_frames < messages.size()){
-            if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
-                // if the sender received non ack ==> resend the last message
-                //error free
-                if(is_non_ack){
-                    //error free
-                    error_bits = "0000";
-                    //finished frames
-                    sent_frames = acked_frame;
-                }
-                else if(is_time_out){
-                    //error free
-                    error_bits = "0000";
-                    //finished frames
-                    sent_frames = expiredSequenceNumber;
-                }
-                else{
-                    //read next message and corresponding errors
-                    error_bits = errors[next_message_index + windowBeg];
-                    }
-                EV<<"At time ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
-
-                Message_Base *new_msg = new Message_Base();
-                //error_bits[0] indicates whether there is a modification error or not
-                prepare_new_message(new_msg,error_bits[0] == '1');
-                //printing
-                EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
-                EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
-                EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
-                EV<<"Duplicate ["<< error_bits[2]<<"],";
-                EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
-                // TD delay for all messages
-                double delay = TD;
-                //check delay
-                if(error_bits[3] == '1'){
-                    //increase the delay
-                    delay += ED;
-                }
-                //check loss error
-                if(error_bits[1]!= '1'){
-                    //no loss
-                    sendDelayed(new_msg, delay, "nodeGate$o");
-                    }
-                else{
-                    cancelAndDelete(new_msg);
-                }
-                //check duplicate error bit
-                if(error_bits[2]== '1'){
-                    //duplicate printing
-                    EV<<"At time ["<<simTime().dbl() + DD<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
-                    EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
-                    EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
-                    EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
-                    EV<<"Duplicate [2],";
-                    EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
-                    //check loss error
-                    if(error_bits[1]!= '1'){
-                        //send duplicate version of the message
-                        sendDelayed(new_msg->dup(), delay + DD, "nodeGate$o");
-                    }
-                }
-                //else ==> loss
-                if(next_message_index == WS-1){
-                    //the first time this if condition is met
-                    if(!is_window_ended){
-                        //number of frames already sent
-                        sent_frames+=1;
-                    }
-                    //the window ends
-                    //stop sending until ack, non ack or timeout
-                    is_window_ended=true;
-                    // index will be updated in the new window
-                    next_message_index = WS;
-                    //set processing time delay (so the simulator doesn't end simulation)
-                    scheduleProcessingTime(PT);
-                }
-                else{
-                    //increment the next_message_index after sending
-                    next_message_index = (next_message_index + 1) % WS;
-                    //print the message prepare
-                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                    EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
-                    //number of frames already sent
-                    sent_frames+=1;
-                    //set processing time delay
-                    scheduleProcessingTime(PT);
-                    // Schedule the timeout event for the sent message
-                    scheduleTimeout(sent_frames);
-                }
-                }
-            else if(is_window_ended){
-                //call the function until re sending occurs
-                scheduleProcessingTime(PT);
-            }
-            //terminate condition
-            //all message are sent ==> terminate
-            else if(sent_frames == messages.size()){
-                endSimulation();
-            }
-
+        // time out handling
+        // Handle timeout event
+        expiredSequenceNumber = msg->getKind();
+        EV<<"Time out event at time ["<<simTime().dbl()<<"], at Node["<<sender_file_index<<"] for frame with seq_num=["<<expiredSequenceNumber%WS<<"]"<<endl;
+        //read again the first message time out but error free this time
+        //index of the first message of the window to be sent
+        next_message_index = 0;
+        //send the message
+        //to resend
+        is_window_ended= false;
+        timing_idx = -1;
+        for(int i = next_message_index; i< windowBeg+ WS; i++){
+            my_message_handling(false, true);
         }
+
     }
+
 }
