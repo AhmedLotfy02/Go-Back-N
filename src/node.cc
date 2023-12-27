@@ -158,7 +158,7 @@ void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = fal
     // data message
     new_msg->setFrameType(2);
     // seq number(range from 0 to WS-1)
-    new_msg->setSeqNum(next_seq%WS);
+    new_msg->setSeqNum(sent_frames%WS);
 
 }
 void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to_add){
@@ -176,7 +176,8 @@ void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to
             //error free
             error_bits = "0000";
             //modify number os sent frames, as we will resend frames starting from the ack number
-            sent_frames = expiredSequenceNumber;
+           // sent_frames = expiredSequenceNumber;
+
         }
         else{
             //console printing
@@ -207,6 +208,8 @@ void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to
         output_file<<"Duplicate ["<< error_bits[2]<<"],";
         output_file<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
         output_file.close();
+
+
         // TD delay for all messages
         //initial PT will be added to all messages
 
@@ -231,7 +234,7 @@ void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to
         if(error_bits[2]== '1'){
             //duplicate printing
             //console printing
-            EV<<"At time ["<<simTime().dbl() + DD + PT*(timing_idx)<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+            EV<<"At time ["<<simTime().dbl() + DD + PT*(timing_idx) +PT<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
             EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << charToBinary(new_msg->getParity()) << "], ";
             EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
             EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
@@ -239,7 +242,7 @@ void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to
             EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
             //file printing
             output_file.open("output.txt",std::fstream::app);
-            output_file<<"At time ["<<simTime().dbl() + DD + PT*(timing_idx)<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+            output_file<<"At time ["<<simTime().dbl() + DD + PT*(timing_idx)+PT<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
             output_file << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << charToBinary(new_msg->getParity()) << "], ";
             output_file<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
             output_file<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
@@ -280,9 +283,9 @@ void Node::my_message_handling(bool is_non_ack, bool is_time_out, double time_to
     }
     //terminate condition
     //all message are sent ==> terminate
-    else if(sent_frames == messages.size()){
-        endSimulation();
-    }
+//    else if(sent_frames == messages.size()){
+//        endSimulation();
+//    }
 }
 void Node::initialize()
 {
@@ -383,7 +386,10 @@ void Node::handleMessage(cMessage *msg)
                         }
                         //ack in the new window
                         else{
-                            number_of_frames = (WS - windowBeg) + acked_frame;
+                            number_of_frames = (WS - windowBeg%WS) + acked_frame;
+                        }
+                        if(sent_frames>7){
+                            EV<<"HELLO"<<endl;
                         }
                         // increment the windowBeg by the number of frames acked
                         windowBeg = windowBeg + number_of_frames;
@@ -393,18 +399,28 @@ void Node::handleMessage(cMessage *msg)
                             next_message_index = 0;
                         }
                         // Cancel the timeout of the last message before the ack number
-                        //accumulative cancel
-                        cancelTimeout(windowBeg - 1);
                         // update previous_acked_frame
                         previous_acked_frame = acked_frame;
                         is_window_ended = false;
                         int time_to_add;
                         //from the next message to send to the end of the new window
                         if(cmsg->getFrameType()==0){
+                            //modify number os sent frames, as we will resend frames starting from the ack number
+                            sent_frames = next_message_index + windowBeg;
                             timing_idx = -1;
                             time_to_add = 0.001;
+                            // Delete any remaining timeout events
+                            for (auto it = timeoutEvents.begin(); it != timeoutEvents.end(); ++it) {
+                                cancelAndDelete(it->second);
+                            }
+
+                            timeoutEvents.clear();
                         }
                         else{
+                            //accumulative cancel
+
+                            cancelTimeout(windowBeg - 1);
+
                             timing_idx = 0;
                             time_to_add = 0;
                         }
@@ -427,8 +443,10 @@ void Node::handleMessage(cMessage *msg)
                     std::string payload = cmsg -> getPayload();
                     char parity = cmsg -> getParity();
                     // Ack and NACK are sent for in order messages only.
+
                     if(seqNum == expected_seq_num){
                         //If it is correct
+
                          if(checksum(parity, payload)){
                              expected_seq_num = (expected_seq_num + 1)%WS;
                              //Frame type:ACK=1
@@ -439,6 +457,7 @@ void Node::handleMessage(cMessage *msg)
                              output_file.open("output.txt",std::fstream::app);
                              output_file<<"Uploading payload=["<< destuffedFrame<<"] and seq_num =["<<seqNum<<"] to the network layer"<<endl;
                              output_file.close();
+
                         }
                         //Else
                         else{
@@ -456,6 +475,7 @@ void Node::handleMessage(cMessage *msg)
                           cmsg ->setFrameType(frameType);
                           //Loss or not
                           //Loss with probability = LP
+
                           volatile float val = uniform(0, 1);
                           if (val >= loss_probability) {
                               EV<<" , loss [No]"<<endl;
@@ -489,9 +509,11 @@ void Node::handleMessage(cMessage *msg)
     // Check if the message is a timeout alarm
     else if (std::strcmp(msg->getName(),"Timeout")==0) {
         // Delete any remaining timeout events
-        for (auto &entry : timeoutEvents) {
-            cancelAndDelete(entry.second);
+        for (auto it = timeoutEvents.begin(); it != timeoutEvents.end(); ++it) {
+            cancelAndDelete(it->second);
         }
+
+        timeoutEvents.clear();
         // time out handling
         // Handle timeout event
         expiredSequenceNumber = msg->getKind();
@@ -502,6 +524,7 @@ void Node::handleMessage(cMessage *msg)
         //read again the first message time out but error free this time
         //index of the first message of the window to be sent
         next_message_index = 0;
+        sent_frames=windowBeg;
         //send the message
         //to resend
         is_window_ended= false;
