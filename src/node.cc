@@ -62,6 +62,21 @@ std::bitset<8> Node::calculateChecksum(const std::string& str) {
    return std::bitset<8>(onesComplement);
 }
 
+//check  sum aht the receiver side
+bool Node::checksum(char parity, std::string payload){
+    //Calclate the check sum and check it
+    char checksum = parity;
+    for (size_t i = 0; i < payload.length(); ++i) {
+         checksum += static_cast<unsigned char>(payload[i]);
+     }
+    //If it is correct
+     if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
+         return true;
+     }
+     else{
+         return false;
+     }
+}
 //Function to read input file
 void Node::readInput(std::ifstream filestream){
        std::string line;
@@ -233,9 +248,8 @@ void Node::handleMessage(cMessage *msg)
     if (dynamic_cast<Message_Base*>(msg) != nullptr) {
         // Received a Message_Base message
         Message_Base *cmsg=check_and_cast<Message_Base *> (msg);
-
-
         // Check the arrival gate of the received message
+        //coordinator message
             if (msg->getArrivalGate() == gate("coordinatorGate")) {
                 if(strcmp(cmsg->getName(),"rec")==0){
                     //It's A receiver
@@ -270,11 +284,13 @@ void Node::handleMessage(cMessage *msg)
                     else{
                         //the starting node should start reading its messages from its file on the specified starting time
                         //PT is the time between start reading and sending
-
+                        cMessage * self_msg = new cMessage("start_sending");
+                        scheduleAt(simTime() + time_first_message, self_msg);
                     }
                 }
             }
-            else if(msg->getArrivalGate() == gate("nodeGate")){
+            //ack / non ack
+            else if(msg->getArrivalGate() == gate("nodeGate$i")){
                 // sender logic
                 if(isSender){
                     // if ack/not ack is received
@@ -355,13 +371,8 @@ void Node::handleMessage(cMessage *msg)
                     char parity = cmsg -> getParity();
                     // Ack and NACK are sent for in order messages only.
                     if(seqNum == expected_seq_num){
-                        //Calclate the check sum and check it
-                        char checksum = parity;
-                        for (size_t i = 0; i < payload.length(); ++i) {
-                             checksum += static_cast<unsigned char>(payload[i]);
-                         }
                         //If it is correct
-                         if(std::bitset<8>(checksum) == std::bitset<8>("11111111")){
+                         if(checksum(parity, payload)){
                              expected_seq_num = (expected_seq_num + 1)%WS;
                              //Frame type:ACK=1
                              frameType = 1;
@@ -393,12 +404,81 @@ void Node::handleMessage(cMessage *msg)
                           else{
                               EV<<" , loss [Yes]"<<endl;
                           }
-                              //Print #4
                         }
-
                 }
             }
+    }
+    //the beginning of sending
+    else if(strcmp(msg->getName(), "start_sending") == 0){
+        for (int i = 0; i< WS ; i++){
 
+            if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
+                Message_Base *new_msg = new Message_Base();
+                std::string error_bits = errors[next_message_index + windowBeg];
+                //error_bits[0] indicates whether there is a modification error or not
+                send_new_line(new_msg,error_bits[0] == '1');
+                //printing
+                EV<<"AT ["<<simTime().dbl() + i*PT<<"], Node["<<sender_file_index<<"], ";
+                EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
+                EV<<"At time ["<<simTime().dbl() + i*PT + PT<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+                EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
+                EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
+                EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
+                EV<<"Duplicate ["<< error_bits[2]<<"],";
+                EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
+                // TD delay for all messages
+                //initial PT will be added to all messages
+                double delay = TD + PT;
+                //check delay
+                if(error_bits[3] == '1'){
+                    //increase the delay
+                    delay += ED;
+                }
+                //check loss error
+                if(error_bits[1]!= '1'){
+                    //no loss
+                    sendDelayed(new_msg, delay + PT*i, "nodeGate$o");
+                    }
+                else{
+                    cancelAndDelete(new_msg);
+                }
+                //check duplicate error bit
+                if(error_bits[2]== '1'){
+                    //duplicate printing
+                    EV<<"At time ["<<simTime().dbl() + DD + PT*i<<"], Node["<<sender_file_index<<"], [sent] frame with seq_num=[";
+                    EV << new_msg->getSeqNum() << "] and payload=[" << new_msg->getPayload() << "] and trailer=[" << new_msg->getParity() << "], ";
+                    EV<<"Modified ["<< (error_bits[0]=='0'?"-1":"1")<<"],";
+                    EV<<"Lost ["<< (error_bits[1]=='0'?"NO":"Yes")<<"],";
+                    EV<<"Duplicate [2],";
+                    EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
+                    //check loss error
+                    if(error_bits[1]!= '1'){
+                        //send duplicate version of the message
+                        sendDelayed(new_msg->dup(), delay + DD + PT*i, "nodeGate$o");
+                    }
+                }
+                if(next_message_index == WS-1){
+                //the first time this if condition is met
+                if(!is_window_ended){
+                    //number of frames already sent
+                    sent_frames+=1;
+                }
+                //the window ends
+                //stop sending until ack, non ack or timeout
+                is_window_ended=true;
+                // index will be updated in the new window
+                next_message_index = WS;
+            }
+            else{
+                //increment the next_message_index after sending
+                next_message_index = (next_message_index + 1) % WS;
+                //number of frames already sent
+                sent_frames+=1;
+                // Schedule the timeout event for the sent message
+                scheduleTimeout(sent_frames);
+            }
+            }
+        }
     }
     // generic message (a message from the same node)
     else{

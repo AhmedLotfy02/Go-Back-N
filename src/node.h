@@ -73,7 +73,7 @@ class Node : public cSimpleModule
 
     // function to apply check sum in sender side
     std::bitset<8> calculateChecksum(const std::string& str);
-    bool checksum(char parity);
+    bool checksum(char parity,std::string payload);
 
     // functions to deal with PT wait
     void scheduleProcessingTime(double PT);
