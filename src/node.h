@@ -40,7 +40,8 @@ class Node : public cSimpleModule
     int next_seq;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
-    int timing_idx = 0;
+
+    int timing_idx;
     // Map to store timeout events for each message
     std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
@@ -68,11 +69,14 @@ class Node : public cSimpleModule
     // Function to prepare new message to send
     void prepare_new_message(Message_Base *new_msg, bool is_modification);
     // Function to send new message
-    void my_message_handling(bool is_non_ack, bool is_time_out);
-  //  void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
-
+    void my_message_handling(bool is_non_ack, bool is_time_out, double time_to_add);
+    // start waiting for time_out timee after each message
     virtual void scheduleTimeout(int sequenceNumber, double sending_time);
+    // stop all the time_out timers after an ack/non-ack/time_out occured
     virtual void cancelTimeout(int sequenceNumber);
+    // to print char as bits
+    std::string charToBinary(char c);
+
 };
 
 #endif
