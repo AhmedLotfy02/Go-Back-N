@@ -319,9 +319,7 @@ void Node::handleMessage(cMessage *msg)
                         EV<< "next_message_index " <<next_message_index<<endl;
                         EV<< "number_of_frames "<<number_of_frames<<endl;
                         is_window_ended = false;
-                        double new_start_time = simTime().dbl();
                         for(int i = next_message_index; i< windowBeg+ WS; i++){
-                            //int i =0;
                             if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
                                 int j = 0;
                                 Message_Base *new_msg = new Message_Base();
@@ -339,7 +337,7 @@ void Node::handleMessage(cMessage *msg)
                                 EV<<"Delay ["<< (error_bits[3]=='0' ?0:ED)<<"]."<<endl;
                                 // TD delay for all messages
                                 //initial PT will be added to all messages
-                                double delay = TD + PT + new_start_time;
+                                double delay = TD + PT;
                                 //check delay
                                 if(error_bits[3] == '1'){
                                     //increase the delay
@@ -392,7 +390,6 @@ void Node::handleMessage(cMessage *msg)
                             }
                                 j = j+1;
                             }
-                            //i++;
                         }
                     }
                     // if non ack ==> resend the frame with non ack
@@ -469,6 +466,7 @@ void Node::handleMessage(cMessage *msg)
         for (int i = 0; i< WS ; i++){
             if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
                 EV<<"Here"<<endl;
+
                 Message_Base *new_msg = new Message_Base();
                 std::string error_bits = errors[next_message_index + windowBeg];
                 //error_bits[0] indicates whether there is a modification error or not
