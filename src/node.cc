@@ -198,7 +198,7 @@ void Node::send_new_line(Message_Base *new_msg, bool is_modification = false) {
     // data message
     new_msg->setFrameType(2);
     // seq number(range from 0 to WS-1)
-    new_msg->setSeqNum(next_message_index%WS);
+    new_msg->setSeqNum(next_seq%WS);
 
 }
 
@@ -379,10 +379,12 @@ void Node::handleMessage(cMessage *msg)
                                 is_window_ended=true;
                                 // index will be updated in the new window
                                 next_message_index = WS;
+                                next_seq = next_seq + 1;
                             }
                             else{
                                 //increment the next_message_index after sending
                                 next_message_index = (next_message_index + 1) % WS;
+                                next_seq = next_seq + 1;
                                 //number of frames already sent
                                 sent_frames+=1;
                                 // Schedule the timeout event for the sent message
@@ -522,10 +524,12 @@ void Node::handleMessage(cMessage *msg)
                 is_window_ended=true;
                 // index will be updated in the new window
                 next_message_index = WS;
+                next_seq = next_seq + 1;
             }
             else{
                 //increment the next_message_index after sending
                 next_message_index = (next_message_index + 1) % WS;
+                next_seq = next_seq + 1;
                 //number of frames already sent
                 sent_frames+=1;
                 // Schedule the timeout event for the sent message

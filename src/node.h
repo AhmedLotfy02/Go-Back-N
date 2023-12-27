@@ -45,6 +45,8 @@ class Node : public cSimpleModule
     int expected_seq_num;
     //number of frames already sent
     int sent_frames = 0;
+
+    int next_seq = 0;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
 
