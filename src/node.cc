@@ -302,16 +302,13 @@ void Node::handleMessage(cMessage *msg)
                         //2 acks within the same window
                         if(acked_frame > previous_acked_frame){
                             number_of_frames = acked_frame - previous_acked_frame;
-                            windowBeg = windowBeg + number_of_frames;
-                            next_message_index = next_message_index - number_of_frames;
                         }
                         //ack in the new window
                         else{
-                            //(windowBeg / WS) ==> window number
-                            //window
-                            windowBeg = (windowBeg / WS)+ WS + acked_frame;
-                            next_message_index = 0 ;
+                            number_of_frames = (WS - windowBeg) + acked_frame;
                         }
+                        windowBeg = windowBeg + number_of_frames;
+                        next_message_index = next_message_index - number_of_frames;
                         // Cancel the timeout of the last message before the ack number
                         //accumulative cancel
                         cancelTimeout(windowBeg - 1);
@@ -469,6 +466,7 @@ void Node::handleMessage(cMessage *msg)
     else if(strcmp(msg->getName(), "start_sending") == 0){
         for (int i = 0; i< WS ; i++){
             if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
+                EV<<"Here"<<endl;
                 Message_Base *new_msg = new Message_Base();
                 std::string error_bits = errors[next_message_index + windowBeg];
                 //error_bits[0] indicates whether there is a modification error or not
