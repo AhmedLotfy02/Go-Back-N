@@ -274,76 +274,75 @@ void Node::handleMessage(cMessage *msg)
                     }
                 }
             }
-            // sender logic
-            if(isSender){
-                // if ack/not ack is received
-                if(cmsg->getFrameType()==1){
-                    cancelProcessingTime();
-                    EV<<"ACK Ack "<<endl;
-                    EV<< "next_message_index " <<next_message_index<<endl;
-                    int number_of_frames;
-                    acked_frame = cmsg->getAckNum();
-                    // increment the windowBeg by the number of frames acked
-                    //acked_frame - previous_acked_frame ==> to get number of frames acked
+            else if(msg->getArrivalGate() == gate("nodeGate")){
+                // sender logic
+                if(isSender){
+                    // if ack/not ack is received
+                    if(cmsg->getFrameType()==1){
+                        cancelProcessingTime();
+                        EV<<"ACK Ack "<<endl;
+                        EV<< "next_message_index " <<next_message_index<<endl;
+                        int number_of_frames;
+                        acked_frame = cmsg->getAckNum();
+                        // increment the windowBeg by the number of frames acked
+                        //acked_frame - previous_acked_frame ==> to get number of frames acked
 
-                    //2 acks within the same window
-                    if(acked_frame > previous_acked_frame){
-                        number_of_frames = acked_frame - previous_acked_frame;
-                        windowBeg = windowBeg + number_of_frames;
-                        next_message_index = next_message_index - number_of_frames;
-                        EV<<"Here 1"<<endl;
-                    }
-                    //ack in the new window
-                    else{
-                        EV<<"Here 2"<<endl;
-                        //(windowBeg / WS) ==> window number
-                        //window
-                        windowBeg = (windowBeg / WS)+ WS + acked_frame;
-                        next_message_index = 0 ;
-                    }
-                    // Cancel the timeout of the last message before the ack number
-                    //accumulative cancel
-                    cancelTimeout(windowBeg - 1);
-                    is_ack = true;
-                    previous_acked_frame = acked_frame;
+                        //2 acks within the same window
+                        if(acked_frame > previous_acked_frame){
+                            number_of_frames = acked_frame - previous_acked_frame;
+                            windowBeg = windowBeg + number_of_frames;
+                            next_message_index = next_message_index - number_of_frames;
+                            EV<<"Here 1"<<endl;
+                        }
+                        //ack in the new window
+                        else{
+                            EV<<"Here 2"<<endl;
+                            //(windowBeg / WS) ==> window number
+                            //window
+                            windowBeg = (windowBeg / WS)+ WS + acked_frame;
+                            next_message_index = 0 ;
+                        }
+                        // Cancel the timeout of the last message before the ack number
+                        //accumulative cancel
+                        cancelTimeout(windowBeg - 1);
+                        is_ack = true;
+                        previous_acked_frame = acked_frame;
 
-                    EV<< "windowBeg " <<windowBeg<<endl;
-                    EV<< "next_message_index " <<next_message_index<<endl;
-                    EV<< "number_of_frames "<<number_of_frames<<endl;
-                    is_window_ended = false;
-                    //print the message prepare
-                    EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
-                    EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
-                    scheduleProcessingTime(PT);
-                    /*
-                    //cancel current PT so not crash
-                    cancelProcessingTime();
-                    //the next message PT
-                    scheduleProcessingTime(PT);
-                    */
+                        EV<< "windowBeg " <<windowBeg<<endl;
+                        EV<< "next_message_index " <<next_message_index<<endl;
+                        EV<< "number_of_frames "<<number_of_frames<<endl;
+                        is_window_ended = false;
+                        //print the message prepare
+                        EV<<"AT ["<<simTime().dbl()<<"], Node["<<sender_file_index<<"], ";
+                        EV<<"Introducing channel error with code=["<<errors[next_message_index + windowBeg]<<"]"<<endl;
+                        scheduleProcessingTime(PT);
+                        /*
+                        //cancel current PT so not crash
+                        cancelProcessingTime();
+                        //the next message PT
+                        scheduleProcessingTime(PT);
+                        */
+                    }
+                    // if non ack ==> resend the frame with non ack
+                    else if (cmsg->getFrameType()==0){
+                        acked_frame = cmsg->getAckNum();
+                        // Cancel the timeout of the last message before the ack number
+                        //accumulative cancel
+                        cancelTimeout(windowBeg + acked_frame - 1);
+                        // increment the windowBeg by the number of frames acked
+                        windowBeg = (windowBeg + acked_frame) % WS;
+                        //the first message in the new window
+                        next_message_index = 0;
+                        //to send the errored message again “error free this time”
+                        is_non_ack = true;
+                        //upon receiving a NACK , the sender will stop what he is processing
+                        cancelProcessingTime();
+                        //the message is sent after the processing time +0.001 (to break any possible ties).
+                        scheduleProcessingTime(PT + 0.001);
+                        }
                 }
-                // if non ack ==> resend the frame with non ack
-                else if (cmsg->getFrameType()==0){
-                    acked_frame = cmsg->getAckNum();
-                    // Cancel the timeout of the last message before the ack number
-                    //accumulative cancel
-                    cancelTimeout(windowBeg + acked_frame - 1);
-                    // increment the windowBeg by the number of frames acked
-                    windowBeg = (windowBeg + acked_frame) % WS;
-                    //the first message in the new window
-                    next_message_index = 0;
-                    //to send the errored message again “error free this time”
-                    is_non_ack = true;
-                    //upon receiving a NACK , the sender will stop what he is processing
-                    cancelProcessingTime();
-                    //the message is sent after the processing time +0.001 (to break any possible ties).
-                    scheduleProcessingTime(PT + 0.001);
-                    }
-            }
-            //Receiver logic
-            else{
-                //It isn't the message from the coordinator
-                if(strcmp(cmsg->getName(),"rec")!=0){
+                //Receiver logic
+                else{
                     //Receiver Logic.
                     // Access the loss_probability parameter value
                     double loss_probability = getParentModule()->par("LP").doubleValue();
@@ -396,8 +395,10 @@ void Node::handleMessage(cMessage *msg)
                           }
                               //Print #4
                         }
+
                 }
             }
+
     }
     // generic message (a message from the same node)
     else{
