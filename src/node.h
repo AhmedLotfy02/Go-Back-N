@@ -44,13 +44,12 @@ class Node : public cSimpleModule
     //Reciever data
     int expected_seq_num;
     //number of frames already sent
-    int sent_frames = 0;
-
-    int next_seq = 0;
+    int sent_frames;
+    //squence number of the next message
+    int next_seq;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
 
-    bool is_ack;
     // Map to store timeout events for each message
     std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
@@ -80,8 +79,10 @@ class Node : public cSimpleModule
     // functions to deal with PT wait
     void scheduleProcessingTime(double PT);
     void cancelProcessingTime();
-    // Fumction to send new message from the sender
-    void send_new_line(Message_Base *new_msg, bool is_modification);
+    // Function to prepare new message to send
+    void prepare_new_message(Message_Base *new_msg, bool is_modification);
+    // Function to send new message
+    void my_message_handling(bool is_non_ack);
   //  void outputFile(int printCase, double eventTime, int NodeId, Message_Base* msg, std::string error );
 
     virtual void scheduleTimeout(int sequenceNumber);
