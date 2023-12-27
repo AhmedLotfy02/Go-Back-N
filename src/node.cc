@@ -170,6 +170,11 @@ void Node::cancelTimeout(int sequenceNumber) {
 void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = false) {
     // get the message that should be sent from the messages list
     std::string message_text = messages[next_message_index + windowBeg];
+    // Apply byte stuffing on the message
+    std::string stuffedFrame = byteStuffing(message_text.c_str());
+    //Calculate the check sum
+    std::bitset<8> parityBitStream = calculateChecksum(stuffedFrame);//To set the checksum as char
+    char parity = (char) parityBitStream.to_ulong();
     //modify a bit if the modification error exists
     if(is_modification){
         // Randomly choose an index
@@ -184,14 +189,9 @@ void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = fal
 
         // Flip the selected bit in the byte
         byte ^= (1 << bit_position);  // XOR with a bitmask to flip the bit
+        // Apply byte stuffing on the message after error
+        stuffedFrame = byteStuffing(message_text.c_str());
     }
-    // Apply byte stuffing on the message
-    std::string stuffedFrame = byteStuffing(message_text.c_str());
-    //Calculate the check sum
-    std::bitset<8> parityBitStream = calculateChecksum(stuffedFrame);
-    //To set the checksum as char
-    char parity = (char) parityBitStream.to_ulong();
-
     // Prepare the message that will be sent
     new_msg->setPayload(stuffedFrame.c_str());
     new_msg->setParity(parity);
@@ -203,7 +203,6 @@ void Node::prepare_new_message(Message_Base *new_msg, bool is_modification = fal
 }
 void Node::my_message_handling(bool is_non_ack){
     if(next_message_index <= WS && sent_frames < messages.size() && !is_window_ended){
-        int timing_idx = 0;
         Message_Base *new_msg = new Message_Base();
         std::string error_bits = errors[next_message_index + windowBeg];
         //the first frame after receiving a non ack
@@ -400,6 +399,7 @@ void Node::handleMessage(cMessage *msg)
                         previous_acked_frame = acked_frame;
                         is_window_ended = false;
                         //from the next message to send to the end of the new window
+                        timing_idx = 0;
                         for(int i = next_message_index; i< windowBeg+ WS; i++){
                             my_message_handling(cmsg->getFrameType()==0);
                         }
@@ -459,8 +459,9 @@ void Node::handleMessage(cMessage *msg)
     //the beginning of sending
     else if(strcmp(msg->getName(), "start_sending") == 0){
         //from the beginning of the message to the end of the first window
+        timing_idx = 0;
         for (int i = 0; i< WS ; i++){
-            my_message_handling();
+            my_message_handling(false);
         }
     }
     // generic message (a message from the same node)

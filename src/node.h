@@ -49,7 +49,7 @@ class Node : public cSimpleModule
     int next_seq;
     //to keep track all the window is sent to avoid resending before the timeout
     bool is_window_ended;
-
+    int timing_idx = 0;
     // Map to store timeout events for each message
     std::map<int, cMessage *> timeoutEvents;
     // Parameters to use in sending and receiving
