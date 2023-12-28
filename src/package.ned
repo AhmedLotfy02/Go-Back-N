@@ -7,7 +7,7 @@ package gobackn;
 network Network
 {
     parameters:
-        double TD = 1.0;   
+        double TD = 1.0;  
         double PT = 0.5;   
         double ED = 4.0;   
         double DD = 0.1; 
