@@ -37,20 +37,15 @@ After the coordinator sends the initialization messages, the starting node shoul
 Although at any session, only one file containing the messages is read and the other will not be used, we keep both files in case the coordinator would choose any one of the nodes to start freely in later sessions or runs of the program.
 
 5. Parameters that are set in the .ini file:
-
-● The sender window of size WS, by default=3
-
-● The timeout interval TO in seconds for the Go Back N protocol, by default=10
-
-● The sender’s and receivers’ processing time PT for each frame, by default=0.5
-
-● The channel’s transmission delay TD for any frame, by default=1.0
-
-● The channel’s error delay ED for any frame, by default=4.0
-
-● The channel’s duplication delay DD before sending the second version, by default=0.1
-
-● ACK/NACK frame loss probability LP, by default =0%.
+<ul>
+     <li> The sender window of size WS, by default=3</li>
+     <li> The channel’s transmission delay TD for any frame, by default=1.0</li>
+     <li> The timeout interval TO in seconds for the Go Back N protocol, by default=10</li>
+     <li> The sender’s and receivers’ processing time PT for each frame, by default=0.5</li>
+     <li> The channel’s error delay ED for any frame, by default=4.0</li>
+     <li> The channel’s duplication delay DD before sending the second version, by default=0.1</li>
+     <li> ACK/NACK frame loss probability LP, by default =0%.</li>
+</ul>
 
 ## Delays in the system:
 
@@ -68,7 +63,7 @@ We have several delays in the system as follows:
 
 The system print one log file named [output.txt], containing the details for each message transmission from both nodes using the following format:
 
-<img src="assets/table_4.png" alt="System Output" >
+<img src="assets/system output.png" alt="System Output" >
 
 ## Messages
 
