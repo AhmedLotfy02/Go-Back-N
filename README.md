@@ -22,15 +22,24 @@ In this project, the pair of nodes would communicate and exchange messages using
 <img src="assets/input_example.png" alt="Input Example" > 
      </li>
      <li>
-          Table 1 contains the details of the errors and their priorities:
-     
-<img src="assets/table_1.png" alt="Table" >
+     Table 1 contains the details of the errors and their priorities:
+     <ul>
+          <li>
+               <img src="assets/table_1.png" alt="Table" >
+          </li>
 
-<img src="assets/table_2.png" alt="Table" >
+          <li>
+               <img src="assets/table_2.png" alt="Table" >
+          </li>
 
-<img src="assets/table_3.png" alt="Table" >
+          <li>
+               <img src="assets/table_3.png" alt="Table" >
+          </li>
 
-<img src="assets/table_4.png" alt="Table" >
+          <li>
+               <img src="assets/table_4.png" alt="Table" >
+          </li>
+     </ul>
      </li>
      <li>
           The coordinator starts working in the initialization stage, its main job is to assign choose which node of the pair should start, and when to start in seconds. The coordinator gets this information from an input file “coordinator.txt”.
