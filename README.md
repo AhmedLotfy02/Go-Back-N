@@ -12,13 +12,17 @@ In this project, the pair of nodes would communicate and exchange messages using
 
 ## System inputs:
 
-1. Each node has a list of messages to send, and each node reads its list of messages from a different input text file; namely ‘input0.txt’ for Node0 and ‘input1.txt’ for Node1.
-
-2. Each message starts in a new line, and there is a 4-bits binary prefix before each message. These 4-bits represent the possibility of [Modification, Loss, Duplication, Delay] that would affect this message. For example, “1010 Data Link” means that the message “Data Link” will have a modification to one of its bits while sending, and will be sent twice. Figure2 includes an example of the input file.
+<ol>
+     <li>
+          Each node has a list of messages to send, and each node reads its list of messages from a different input text file; namely ‘input0.txt’ for Node0 and ‘input1.txt’ for Node1.
+     </li>
+     <li>
+          Each message starts in a new line, and there is a 4-bits binary prefix before each message. These 4-bits represent the possibility of [Modification, Loss, Duplication, Delay] that would affect this message. For example, “1010 Data Link” means that the message “Data Link” will have a modification to one of its bits while sending, and will be sent twice. Figure2 includes an example of the input file.
 
 <img src="assets/input_example.png" alt="Input Example" > 
-
-3. Table 1 contains the details of the errors and their priorities:
+     </li>
+     <li>
+          Table 1 contains the details of the errors and their priorities:
      
 <img src="assets/table_1.png" alt="Table" >
 
@@ -27,16 +31,18 @@ In this project, the pair of nodes would communicate and exchange messages using
 <img src="assets/table_3.png" alt="Table" >
 
 <img src="assets/table_4.png" alt="Table" >
-
-4. The coordinator starts working in the initialization stage, its main job is to assign choose which node of the pair should start, and when to start in seconds. The coordinator gets this information from an input file “coordinator.txt”.
+     </li>
+     <li>
+          The coordinator starts working in the initialization stage, its main job is to assign choose which node of the pair should start, and when to start in seconds. The coordinator gets this information from an input file “coordinator.txt”.
 
 It will contain one line contains [“Node_id” “starting_time”] for the starting node, and Node_id=[0,1].
 
 After the coordinator sends the initialization messages, the starting node should start reading its messages from its file on the **specified starting time**, and the receiver will respond back as will be described later. The messages between the peer don’t pass through the coordinator.
 
 Although at any session, only one file containing the messages is read and the other will not be used, we keep both files in case the coordinator would choose any one of the nodes to start freely in later sessions or runs of the program.
-
-5. Parameters that are set in the .ini file:
+     </li>
+     <li>
+     Parameters that are set in the .ini file:
 <ul>
      <li> The sender window of size WS, by default=3</li>
      <li> The channel’s transmission delay TD for any frame, by default=1.0</li>
@@ -46,6 +52,8 @@ Although at any session, only one file containing the messages is read and the o
      <li> The channel’s duplication delay DD before sending the second version, by default=0.1</li>
      <li> ACK/NACK frame loss probability LP, by default =0%.</li>
 </ul>
+     </li>
+</ol>
 
 ## Delays in the system:
 
